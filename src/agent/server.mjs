@@ -6,7 +6,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { runGateJson, activeInvariants } from '../validate/gate.mjs';
+import { runGateJson, activeInvariants, changedFiles } from '../validate/gate.mjs';
 
 const TOOLS = [
   {
@@ -16,8 +16,8 @@ const TOOLS = [
   },
   {
     name: 'guard_check',
-    description: 'Run the architecture gate on the working tree. Call AFTER changes; fix any violation before finishing. The gate cannot be disabled — relaxing or deleting a rule is itself reported as a violation.',
-    inputSchema: { type: 'object', properties: { dir: { type: 'string', description: 'repo dir (default: cwd)' } } },
+    description: 'Run the architecture gate on the working tree. Call AFTER changes; fix any violation before finishing. The gate cannot be disabled — relaxing or deleting a rule is itself reported as a violation. Pass quick:true for fast in-loop feedback (per-file checks + meta-ratchet; skips whole-tree walks).',
+    inputSchema: { type: 'object', properties: { dir: { type: 'string', description: 'repo dir (default: cwd)' }, quick: { type: 'boolean', description: 'fast subset for in-loop feedback' } } },
   },
 ];
 
@@ -30,12 +30,15 @@ function toolInvariants(dir) {
   return textResult(`This repo enforces ${inv.length} architecture invariant(s). Respect them as you write:\n${lines}`);
 }
 
-function toolCheck(dir) {
-  const r = runGateJson(dir);
-  if (r.engineError) return textResult(`Gate FAILED CLOSED (analysis engine unavailable) — a hard stop, not a pass. Fix the environment.\n${r.raw}`, true);
-  if (r.ok) return textResult('Architecture gate: PASS. No violations; the contract holds.');
+function toolCheck(dir, quick) {
+  const changed = changedFiles(dir);
+  const ctx = changed.length ? `You changed ${changed.length} file(s): ${changed.slice(0, 8).join(', ')}${changed.length > 8 ? ' …' : ''}.\n` : '';
+  const mode = quick ? ' (quick: per-file checks + meta-ratchet)' : '';
+  const r = runGateJson(dir, { quick });
+  if (r.engineError) return textResult(`${ctx}Gate FAILED CLOSED (analysis engine unavailable) — a hard stop, not a pass. Fix the environment.\n${r.raw}`, true);
+  if (r.ok) return textResult(`${ctx}Architecture gate${mode}: PASS. No violations; the contract holds.`);
   const lines = r.violations.map((v) => `- [${v.id}] ${v.intent}\n    ${v.reason}`).join('\n');
-  return textResult(`Architecture gate: BLOCKED. Fix these before finishing — you cannot pass by relaxing or deleting a rule (that is itself blocked):\n${lines || r.raw}`, true);
+  return textResult(`${ctx}Architecture gate${mode}: BLOCKED. Fix these before finishing — you cannot pass by relaxing or deleting a rule (that is itself blocked):\n${lines || r.raw}`, true);
 }
 
 // Build the configured MCP server (not yet connected) — so tests can wire it to an in-memory transport.
@@ -45,7 +48,7 @@ export function createServer() {
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const dir = req.params.arguments?.dir || process.cwd();
     if (req.params.name === 'guard_invariants') return toolInvariants(dir);
-    if (req.params.name === 'guard_check') return toolCheck(dir);
+    if (req.params.name === 'guard_check') return toolCheck(dir, !!req.params.arguments?.quick);
     return textResult(`unknown tool: ${req.params.name}`, true);
   });
   return server;
