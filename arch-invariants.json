@@ -1,0 +1,127 @@
+[
+  {
+    "intent": "no-god-functions",
+    "severity": "block",
+    "id": "no-god-functions",
+    "check": {
+      "kind": "max_complexity",
+      "maxComplexity": 12
+    },
+    "mode": "ratchet",
+    "engine": "ast-grep",
+    "lang": "js"
+  },
+  {
+    "intent": "no-god-files",
+    "severity": "block",
+    "id": "no-god-files",
+    "check": {
+      "kind": "oversized_files",
+      "maxLines": 500
+    },
+    "mode": "ratchet"
+  },
+  {
+    "intent": "no-coupling-hub",
+    "severity": "block",
+    "id": "no-coupling-hub",
+    "check": {
+      "kind": "module_fanin",
+      "maxFanin": 6
+    },
+    "mode": "ratchet"
+  },
+  {
+    "intent": "require-tests",
+    "severity": "block",
+    "id": "require-tests",
+    "check": {
+      "kind": "require_tests",
+      "dirs": [
+        "src"
+      ]
+    },
+    "mode": "ratchet"
+  },
+  {
+    "intent": "no-secrets",
+    "severity": "block",
+    "id": "no-committed-secrets",
+    "check": {
+      "kind": "secret_scan",
+      "dirs": [
+        "."
+      ]
+    },
+    "max": 0
+  },
+  {
+    "intent": "isolate-import",
+    "severity": "block",
+    "id": "isolate-anthropic-ai-sdk-anthropic-openai-model-call",
+    "check": {
+      "kind": "forbid_path",
+      "dirs": [
+        "src/validate",
+        "src/agent"
+      ],
+      "path": "@anthropic-ai/sdk|@anthropic|openai|model-call"
+    },
+    "max": 0,
+    "mode": "ratchet"
+  },
+  {
+    "intent": "layering",
+    "severity": "block",
+    "id": "layer-src-validate-not-src-author-agent-cli",
+    "check": {
+      "kind": "forbid_path",
+      "dirs": [
+        "src/validate"
+      ],
+      "path": "src/(author|agent|cli)/"
+    },
+    "max": 0,
+    "mode": "ratchet"
+  },
+  {
+    "intent": "layering",
+    "severity": "block",
+    "id": "layer-src-author-not-src-agent",
+    "check": {
+      "kind": "forbid_path",
+      "dirs": [
+        "src/author"
+      ],
+      "path": "src/agent/"
+    },
+    "max": 0,
+    "mode": "ratchet"
+  },
+  {
+    "intent": "require-paths",
+    "severity": "block",
+    "id": "require-project-trail",
+    "check": {
+      "kind": "require_paths",
+      "paths": [
+        "STATE.md",
+        "docs/adr",
+        "DECISIONS.md"
+      ]
+    },
+    "max": 0
+  },
+  {
+    "intent": "self-guard",
+    "severity": "block",
+    "id": "no-config-relaxation",
+    "check": {
+      "kind": "config_relaxations",
+      "invariants": "arch-invariants.json",
+      "baseline": "arch-invariants.baseline.json",
+      "against": "HEAD"
+    },
+    "max": 0
+  }
+]

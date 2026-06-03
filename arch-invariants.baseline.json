@@ -1,0 +1,12 @@
+{
+  "no-god-functions": 0,
+  "no-god-files": 0,
+  "no-coupling-hub": 0,
+  "require-tests": 3,
+  "no-committed-secrets": 0,
+  "isolate-anthropic-ai-sdk-anthropic-openai-model-call": 0,
+  "layer-src-validate-not-src-author-agent-cli": 0,
+  "layer-src-author-not-src-agent": 0,
+  "require-project-trail": 0,
+  "no-config-relaxation": 0
+}
