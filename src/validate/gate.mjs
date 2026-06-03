@@ -76,6 +76,17 @@ export function activeInvariants(dir) {
   catch { return []; }
 }
 
+// Validate a behavioral property via sprag's `arch property`: accept only if it HOLDS on the current code
+// AND catches bugs (kills mutants) — the deterministic verifier that makes a drafted property trustworthy
+// without trusting the drafter. accepted = exit 0; reject = 3; inconclusive = 2.
+export function runProperty(dir, propCmd, opts = {}) {
+  const args = [spragBin('property.mjs'), dir, '--prop', propCmd, '--all'];
+  if (opts.target) args.push('--target', opts.target);
+  if (opts.minKill) args.push('--min-kill', String(opts.minKill));
+  const r = spawnSync('node', args, { encoding: 'utf8' });
+  return { accepted: r.status === 0, code: r.status, out: (r.stdout || '') + (r.stderr || '') };
+}
+
 // Record/refresh the baseline (ratchet-from-current-state). Used by `guard author` after arming invariants.
 export function recordBaseline(dir, opts = {}) {
   const inv = opts.invariants || join(dir, 'arch-invariants.json');
