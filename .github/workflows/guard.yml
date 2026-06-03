@@ -1,0 +1,35 @@
+name: guard
+# The PR surface: run the architecture gate on every PR, post the result as a comment, and BLOCK on a
+# violation. Because the gate is the meta-ratchet too, a PR that tries to pass by relaxing a rule fails
+# here — the gate can't be talked past, in CI as in the agent loop.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write   # to post the gate report as a comment
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # full history so the meta-ratchet can diff the config vs the base
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      # sprag is the deterministic engine guard wraps. Clone + install it (ast-grep). Pin a SHA in prod.
+      - name: Get sprag
+        run: git clone --depth 1 https://github.com/johnpatrickwarren-oss/sprag.git "$RUNNER_TEMP/sprag" && (cd "$RUNNER_TEMP/sprag" && npm ci || npm install)
+      - name: Install guard
+        run: npm ci || npm install
+      - name: Architecture gate report
+        if: always()
+        env: { SPRAG_HOME: ${{ runner.temp }}/sprag }
+        run: node bin/guard.mjs report . > guard-report.md
+      - name: Post report as a PR comment
+        if: always() && github.event.pull_request.number
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file guard-report.md
+        env: { GH_TOKEN: ${{ github.token }} }
+      - name: Gate (blocks the PR on a violation or a rule relaxation)
+        env: { SPRAG_HOME: ${{ runner.temp }}/sprag }
+        run: node bin/guard.mjs check .

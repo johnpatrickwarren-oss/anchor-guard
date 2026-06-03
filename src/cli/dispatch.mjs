@@ -6,12 +6,14 @@ import { createInterface } from 'node:readline/promises';
 import { runGate, recordBaseline } from '../validate/gate.mjs';
 import { mapInterview, intentVocabulary } from '../author/map-intent.mjs';
 import { runInterview } from '../interview/ask.mjs';
+import { gateReport } from './report.mjs';
 
 const USAGE = `guard <command>
   init   [dir]                       conversational interview -> arch-invariants.json, then baseline + arm
   check  <dir>                       run the gate (architecture invariants + meta-ratchet + fail-closed)
   author <dir> --answers <file.json> map a saved answers file -> arch-invariants.json, then baseline + arm
   mcp                                start the MCP agent-loop server (gate as tools the agent calls in-loop)
+  report [dir]                       print a markdown gate summary (for a PR comment)
   vocab                              list the v1 intent vocabulary`;
 
 // Shared arming: answers -> arch-invariants.json -> baseline (ratchet-from-current; meta-ratchet guards it).
@@ -68,6 +70,7 @@ export function dispatch(argv) {
     case 'check': return cmdCheck(rest);
     case 'author': return cmdAuthor(rest);
     case 'mcp': return void import('../agent/server.mjs').then((m) => m.startStdio()); // lazy: MCP SDK only loaded here
+    case 'report': console.log(gateReport(rest[0] || '.')); return process.exit(0); // markdown for a PR comment
     case 'vocab': console.log(intentVocabulary().join('\n')); return process.exit(0);
     default: console.error(USAGE); return process.exit(cmd ? 64 : 0);
   }
