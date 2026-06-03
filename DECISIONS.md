@@ -82,6 +82,19 @@ post-validation step. **Trade-off:** no org dashboard yet — a PR-comment summa
 
 ---
 
+## D8 — MCP server implementation
+- **(A) ✅ Official `@modelcontextprotocol/sdk`, low-level `Server` + raw JSON-Schema tools** — guaranteed
+  protocol compatibility with real hosts (Claude Code/Cursor), no zod authoring, in-process testable via
+  `InMemoryTransport.createLinkedPair`.
+- **(B) Official SDK high-level `McpServer` + zod** — ergonomic but adds a zod authoring dependency.
+- **(C) Hand-rolled JSON-RPC-over-stdio** — zero deps, but reimplements the protocol and risks subtle
+  incompatibility — which defeats the point ("runs inside the agent loop").
+
+**Chosen: A.** Compatibility is the whole value; the low-level `Server` keeps us off zod while staying
+spec-correct. Tested both in-process (SDK client↔server) and over real stdio (initialize + tools/list).
+The SDK is a *protocol* dep, not a model SDK — confirmed it doesn't trip the model-isolation invariant.
+**Trade-off:** one runtime dependency (+92 transitive); justified for a protocol server.
+
 ## Standing rule for the rest of the build
 Every further fork gets the same treatment, appended here. The product is built **under its own
 governance** (sprag gate from commit zero; STATE.md + ADRs as the trail) — if the dogfood ever fights us,

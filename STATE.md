@@ -32,11 +32,23 @@ Head-to-head vs **dependency-cruiser 17.4.3** on the same layering rule, under a
   (meta-ratchet caught the deletion). The narrow true claim: *parity on detection; the gate can't be
   silently turned off.*
 
+## MCP agent-loop server — DONE (`src/agent/server.mjs`, `guard mcp`)
+The gate runs *as the agent writes*. Two tools (official `@modelcontextprotocol/sdk`, low-level Server):
+- **`guard_invariants`** — the architecture contract to respect (call before structural changes).
+- **`guard_check`** — run the gate on the working tree; returns actionable violations. **The agent can't
+  talk past it:** deleting/relaxing a rule surfaces the meta-ratchet block through the tool too (tested,
+  in-process + over real stdio). `src/agent/` is gate-time + MODEL-FREE (isolate-import invariant holds).
+
+Register with a host (e.g. Claude Code / Cursor `mcp.json`):
+```json
+{ "mcpServers": { "anchor-guard": { "command": "node", "args": ["bin/guard.mjs", "mcp"] } } }
+```
+
 ## Next (resumable)
 - The interview UX (conversational, vs the JSON answers file).
-- The MCP agent-loop server (`src/agent/`) — gate participates as the agent writes.
 - The GitHub PR surface. Behavioral-property authoring (Phase A, model-in-loop behind `arch property`).
 - Broaden the benchmark (raised-threshold / severity-downgrade / re-baseline attacks; Betterer + ESLint).
+- Have `guard_check` scope to the agent's *diff* (incremental) for speed in big repos.
 
 ## Honest status
 Pre-product. The deterministic core is sprag (shipped, 35 suites green). This repo is the *glue*: the

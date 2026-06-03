@@ -8,6 +8,7 @@ import { mapInterview, intentVocabulary } from '../author/map-intent.mjs';
 const USAGE = `guard <command>
   check  <dir>                       run the gate (architecture invariants + meta-ratchet + fail-closed)
   author <dir> --answers <file.json> map interview answers -> arch-invariants.json, then baseline + arm
+  mcp                                start the MCP agent-loop server (gate as tools the agent calls in-loop)
   vocab                              list the v1 intent vocabulary`;
 
 function cmdCheck(argv) {
@@ -38,6 +39,7 @@ export function dispatch(argv) {
   switch (cmd) {
     case 'check': return cmdCheck(rest);
     case 'author': return cmdAuthor(rest);
+    case 'mcp': return void import('../agent/server.mjs').then((m) => m.startStdio()); // lazy: MCP SDK only loaded here
     case 'vocab': console.log(intentVocabulary().join('\n')); return process.exit(0);
     default: console.error(USAGE); return process.exit(cmd ? 64 : 0);
   }
