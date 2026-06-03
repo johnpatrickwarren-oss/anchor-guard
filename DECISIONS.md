@@ -95,6 +95,37 @@ spec-correct. Tested both in-process (SDK client↔server) and over real stdio (
 The SDK is a *protocol* dep, not a model SDK — confirmed it doesn't trip the model-isolation invariant.
 **Trade-off:** one runtime dependency (+92 transitive); justified for a protocol server.
 
+## D9 — Interview I/O
+- **(A) ✅ readline for TTY + read-all-stdin line-queue for piped/scripted input.**
+- (B) readline only — but it drops bulk-piped lines (broke the smoke test) → not scriptable/CI-able.
+- (C) prompt-library dep — unnecessary weight.
+**Chosen: A.** Conversational interactively, *and* `guard init < answers.txt` works (CI / design-partner
+scripting). The question logic is pure+tested; the I/O is a thin shell.
+
+## D10 — Diff-scoped check
+- **(A) ✅ `quick` mode = per-file checks + meta-ratchet, defer whole-tree walks (fanin/require_tests).**
+- (B) true line-level diff scoping — needs sprag changes; premature.
+- (C) always full — fine for small repos, slow for monorepos.
+**Chosen: A.** Fast in-loop feedback that still can't be weakened; the full gate is the authority at
+commit. Proven a strict subset by test (a whole-tree violation blocks full, passes quick; per-file +
+meta-ratchet still enforced).
+
+## D11 — PR surface
+- **(A) ✅ `guard report` (markdown) + a workflow that posts it as a PR comment and blocks on exit code.**
+- (B) full GitHub App (webhooks/OAuth) — premature.
+- (C) CI check only, no comment — less visible.
+**Chosen: A.** Visible + enforcing, minimal infra. The meta-ratchet runs in CI too — a PR that relaxes a
+rule fails the check.
+
+## D12 — Behavioral-property authoring
+- **(A) ✅ Templated shapes from a structured spec, validated by `arch property`; model picks the shape
+  later (fast-follow), behind the same filter.**
+- (B) model-drafts-freely now — the risky/expensive part, premature and unguarded.
+- (C) hand-written property files only — high friction.
+**Chosen: A.** Rules-first (D5), deterministic acceptance. The model only ever *proposes*; `arch property`
+(holds + kills mutants) decides, so a weak/tautological draft can't land (fail-small: rejected drafts are
+deleted).
+
 ## Standing rule for the rest of the build
 Every further fork gets the same treatment, appended here. The product is built **under its own
 governance** (sprag gate from commit zero; STATE.md + ADRs as the trail) — if the dogfood ever fights us,

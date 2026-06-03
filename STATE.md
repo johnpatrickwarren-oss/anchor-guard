@@ -44,11 +44,24 @@ Register with a host (e.g. Claude Code / Cursor `mcp.json`):
 { "mcpServers": { "anchor-guard": { "command": "node", "args": ["bin/guard.mjs", "mcp"] } } }
 ```
 
+## Pieces 1–4 — DONE (autonomous session 2)
+1. **Conversational interview** (`guard init`, `src/interview/`) — TTY + scriptable; authors invariants.
+2. **Diff-scoped `quick` check** (`src/validate/gate.mjs`) — per-file + meta-ratchet, defers whole-tree;
+   exposed via `guard_check {quick}`; `changedFiles` context.
+3. **GitHub PR surface** (`guard report`, `.github/workflows/guard.yml`) — markdown comment + blocking gate.
+4. **Behavioral-property authoring** (`src/author/properties.mjs`) — templated shapes, `arch property`
+   decides (strong accepted, weak dropped, fail-small).
+
+The MVP spine is end-to-end: **init (interview) → armed & self-governed → in-loop MCP gate (can't be
+weakened) → PR gate → behavioral properties validated.** 6 test files green, self-gate green throughout
+(the gate even caught our own over-complex function — decomposed, not relaxed).
+
 ## Next (resumable)
-- The interview UX (conversational, vs the JSON answers file).
-- The GitHub PR surface. Behavioral-property authoring (Phase A, model-in-loop behind `arch property`).
-- Broaden the benchmark (raised-threshold / severity-downgrade / re-baseline attacks; Betterer + ESLint).
-- Have `guard_check` scope to the agent's *diff* (incremental) for speed in big repos.
+- Model picks the property shape / structural intent from free-text (the one remaining model-in-loop bit;
+  feeds the same `arch property` / `guard author` filters).
+- Broaden the benchmark (raised-threshold / severity-downgrade / re-baseline; Betterer + ESLint).
+- Hosted PR app + org dashboard (post-validation); design-partner recruiting.
+- **Not pushed/published** — public posting (named-competitor benchmark, repo) needs John's go-ahead.
 
 ## Honest status
 Pre-product. The deterministic core is sprag (shipped, 35 suites green). This repo is the *glue*: the
