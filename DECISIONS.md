@@ -1,0 +1,88 @@
+# @anchor/guard — MVP decision log
+
+Autonomous build session. **Method: for each fork, 3 options, take the best, log the reasoning.** Anything
+here is reversible in the morning — the chosen option is in **bold** with a one-line "why" and the
+trade-off accepted.
+
+The MVP is the fused on-ramp: **install → interview → invariants armed → agent gated**, the deterministic
+governance layer for teams running coding agents. Wedge: *"the governance an AI agent can't talk past."*
+
+---
+
+## D1 — MVP scope: which slice proves the wedge fastest?
+- **(A) Authoring-loop only** — interview → invariants armed (no agent integration yet).
+- **(B) Agent-gate only** — sprag in the agent loop, invariants hand-authored.
+- **(C) ✅ Thin end-to-end vertical** — minimal interview (structural-mapping milestone) → invariants armed → a single agent-loop gate that blocks + can't be weakened, on ONE repo.
+
+**Chosen: C.** The wedge is the *fusion*; proving either half alone proves nothing new (sprag already
+gates; Anchor already interviews). The thin vertical is the smallest thing that demonstrates the actual
+product claim. **Trade-off:** each layer is shallow (rules-only authoring, one agent runtime) — depth is
+fast-follow.
+
+## D2 — Language / runtime
+- **(A) TypeScript + tsc build** — type-safety, dogfoods our own no-new-any story.
+- **(B) ✅ ESM JavaScript (.mjs), Node 20+, no build** — matches sprag exactly, zero toolchain, sprag
+  gates it natively, fastest iteration.
+- **(C) TS via `node --experimental-strip-types`** — types without a build, but runtime-version risk.
+
+**Chosen: B.** MVP velocity + native sprag dogfooding (sprag is .mjs; no generated-file ambiguity) +
+zero build step. The product *targets* TS user repos regardless of its own language. **Trade-off:** no
+static types on ourselves yet; TS migration is a clean fast-follow once the surface stabilizes.
+
+## D3 — Internal architecture & layering (what we'll author invariants for)
+- **(A) Flat `src/` modules** — fastest, but no enforceable boundaries (the thing we sell).
+- **(B) ✅ Layered: `cli → {interview, author, agent} → validate → (sprag)`, `core` shared** — explicit
+  layers, and the model SDK is isolated to `author/`.
+- **(C) Plugin/hexagonal ports-and-adapters** — clean but over-built for an MVP.
+
+**Chosen: B.** It lets us *enforce our own thesis architecturally*: the deterministic gate (`validate/`)
+and the gate-time path (`agent/`) must **never import a model SDK** — only `author/` (offline) may. The
+product's central promise ("no model at gate-time") becomes a machine-checked layering invariant — the
+headline dogfood. **Trade-off:** a little ceremony up front; worth it because it *is* the demo.
+
+## D4 — Agent-loop integration surface
+- **(A) ✅ MCP server** — runtime-agnostic (Claude Code, Cursor, any MCP host), TS/Node-native, the
+  emerging standard for agent tool integration.
+- **(B) Claude Code skill + hook** — deepest in one runtime, but single-vendor lock.
+- **(C) IDE extension (VS Code)** — broad reach but heavy, and misses headless/CI agents.
+
+**Chosen: A.** MCP is the lowest-effort path to "works inside the agent loop" across the runtimes that
+matter, and it matches where the ecosystem is standardizing. **Trade-off:** MCP can't *block* a write by
+itself — it exposes a `guard.check` tool the agent is instructed to call and obey; true blocking lives in
+the pre-commit hook + CI. MVP = MCP for in-loop feedback, hook for hard enforcement.
+
+## D5 — Authoring approach (interview answers → invariants)
+- **(A) Model-first** — LLM maps free-form intent → invariants. Flexible, but the risky/expensive part.
+- **(B) ✅ Rules-first (decision table), model as later fuzzy-fallback** — deterministic intent→check-kind
+  mapping from a fixed menu; the model only enters for ambiguous mappings, behind `arch property`.
+- **(C) Manual templates** — operator edits JSON. Zero magic, high friction.
+
+**Chosen: B.** The structural-mapping milestone is a *bounded classification* (~20 check kinds) — rules
+handle most of it deterministically, which is faster, testable, and needs no model at all for v1. Keeps
+the one model-in-the-loop step (behavioral properties) for later, gated by `arch property`. **Trade-off:**
+v1 understands a fixed intent vocabulary; fuzzy free-text intent is a fast-follow.
+
+## D6 — How `@anchor/guard` consumes sprag
+- **(A) ✅ Subprocess (`node …/arch.mjs`)** — clean process boundary, version-pinned, no coupling to
+  sprag internals; matches how sprag's own hook shells out.
+- **(B) Import sprag modules directly** — faster calls, but couples to sprag's internal API (unstable).
+- **(C) Vendor/fork sprag** — full control, but a maintenance fork and abandons the dogfood.
+
+**Chosen: A.** Subprocess keeps the boundary honest (and is itself enforceable: `validate/` shells out to
+sprag, nothing else touches it). Pin sprag by path/version. **Trade-off:** per-call process spawn cost —
+negligible at authoring/gate cadence.
+
+## D7 — Distribution (MVP)
+- **(A) ✅ `npx @anchor/guard` CLI + the MCP server it ships** — one install, no account, dev-first.
+- **(B) Hosted SaaS + GitHub App** — the eventual product, but premature pre-validation.
+- **(C) IDE marketplace** — discovery, but heavy and runtime-narrow.
+
+**Chosen: A.** Design-partner motion is "run this in your repo," not "sign up." Hosted/PR-app is the
+post-validation step. **Trade-off:** no org dashboard yet — a PR-comment summary substitutes.
+
+---
+
+## Standing rule for the rest of the build
+Every further fork gets the same treatment, appended here. The product is built **under its own
+governance** (sprag gate from commit zero; STATE.md + ADRs as the trail) — if the dogfood ever fights us,
+that's signal about the product, and it gets logged, not bypassed.

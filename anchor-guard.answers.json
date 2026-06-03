@@ -1,0 +1,12 @@
+[
+  { "intent": "no-god-functions", "lang": "js", "max": 12 },
+  { "intent": "no-god-files", "max": 500 },
+  { "intent": "no-coupling-hub", "max": 6 },
+  { "intent": "require-tests", "dirs": ["src"] },
+  { "intent": "no-secrets" },
+  { "intent": "isolate-import", "forbidIn": ["src/validate", "src/agent"], "path": "@anthropic-ai/sdk|@anthropic|openai|model-call" },
+  { "intent": "layering", "from": ["src/validate"], "forbid": "src/(author|agent|cli)/" },
+  { "intent": "layering", "from": ["src/author"], "forbid": "src/agent/" },
+  { "intent": "require-paths", "paths": ["STATE.md", "docs/adr", "DECISIONS.md"] },
+  { "intent": "self-guard" }
+]

@@ -1,0 +1,16 @@
+{
+  "name": "@anchor/guard",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic governance for teams running coding agents — the gate an AI agent can't talk past. Fuses Anchor's intent interview with sprag's unweakenable gate, in the agent loop.",
+  "bin": { "guard": "bin/guard.mjs" },
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node test/run.mjs",
+    "gate": "node bin/guard.mjs check ."
+  },
+  "config": {
+    "spragHome": "../sprag"
+  }
+}
