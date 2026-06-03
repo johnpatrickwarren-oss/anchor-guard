@@ -1,0 +1,38 @@
+[
+  {
+    "step": "1 clean",
+    "tool": "dependency-cruiser",
+    "exit": 0,
+    "verdict": "pass"
+  },
+  {
+    "step": "1 clean",
+    "tool": "@anchor/guard",
+    "exit": 0,
+    "verdict": "pass"
+  },
+  {
+    "step": "2 violation",
+    "tool": "dependency-cruiser",
+    "exit": 1,
+    "verdict": "BLOCK"
+  },
+  {
+    "step": "2 violation",
+    "tool": "@anchor/guard",
+    "exit": 3,
+    "verdict": "BLOCK"
+  },
+  {
+    "step": "3 relax-config",
+    "tool": "dependency-cruiser",
+    "exit": 0,
+    "verdict": "pass"
+  },
+  {
+    "step": "3 relax-config",
+    "tool": "@anchor/guard",
+    "exit": 3,
+    "verdict": "BLOCK"
+  }
+]

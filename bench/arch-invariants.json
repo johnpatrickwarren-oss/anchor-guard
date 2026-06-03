@@ -1,0 +1,17 @@
+[
+  {
+    "id": "no-ui-to-db-internal",
+    "intent": "UI must not reach into DB internals.",
+    "check": { "kind": "forbid_path", "dirs": ["src/ui"], "path": "db/internal" },
+    "max": 0,
+    "mode": "ratchet",
+    "severity": "block"
+  },
+  {
+    "id": "no-config-relaxation",
+    "intent": "The gate guards itself — a rule cannot be silently deleted or relaxed (the meta-ratchet).",
+    "check": { "kind": "config_relaxations", "invariants": "arch-invariants.json", "baseline": "arch-invariants.baseline.json", "against": "HEAD" },
+    "max": 0,
+    "severity": "block"
+  }
+]

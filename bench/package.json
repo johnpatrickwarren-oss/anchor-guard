@@ -1,0 +1,10 @@
+{
+  "name": "bench-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A tiny layered app: src/ui must never import src/db internals. Used to compare @anchor/guard vs dependency-cruiser under a config-relaxation attack.",
+  "dependencies": {
+    "dependency-cruiser": "^17.4.3"
+  }
+}
