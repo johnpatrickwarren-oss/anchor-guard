@@ -4,7 +4,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { draftProperty, authorProperty, propertyShapes } from '../src/author/properties.mjs';
+import { draftProperty, authorProperty, propertyShapes, SHAPE_PARAMS } from '../src/author/properties.mjs';
 
 let failed = 0;
 const ok = (n, c, d) => { console.log(`${c ? 'ok  ' : 'FAIL'}  ${n}${c ? '' : '  -- ' + d}`); if (!c) failed++; };
@@ -15,6 +15,8 @@ mkdirSync(join(d, 'src'));
 writeFileSync(join(d, 'src/age.js'), 'export const isAdult = (age) => age >= 18;\n');
 
 ok('shapes available', propertyShapes().includes('examples') && propertyShapes().includes('idempotence'), '');
+{ const undocumented = propertyShapes().filter((s) => !(s in SHAPE_PARAMS));
+  ok('every shape is documented in SHAPE_PARAMS', undocumented.length === 0, `undocumented: ${undocumented.join(', ')}`); }
 ok('draftProperty emits a runnable file', draftProperty({ shape: 'examples', module: './src/age.js', fn: 'isAdult', cases: [[18, true]] }).content.includes('isAdult'), '');
 ok('unknown shape -> reason', draftProperty({ shape: 'nope', fn: 'x' }).ok === false, '');
 

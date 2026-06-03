@@ -18,6 +18,14 @@ const TEMPLATES = {
 
 export const propertyShapes = () => Object.keys(TEMPLATES);
 
+// Per-shape PARAMETER catalog for the free-text proposer (mirrors what each TEMPLATE reads). Guidance only —
+// `arch property` still decides (holds + kills mutants). A test asserts every shape is documented.
+export const SHAPE_PARAMS = {
+  examples: { required: { module: 'relative import path of the module under test, e.g. "./src/age.js"', fn: 'the exported function name', cases: 'ARRAY of [input, expected] pairs — include BOUNDARY cases so the property kills mutants' } },
+  idempotence: { required: { module: 'relative import path', fn: 'the exported function name (f(f(x)) must equal f(x))', samples: 'ARRAY of inputs to check' } },
+  roundtrip: { required: { module: 'relative import path', fn: 'the forward function', inverse: 'the inverse function name (g(f(x)) must equal x)', samples: 'ARRAY of inputs to check' } },
+};
+
 // Draft a property file (filename + content) from a spec, or a reason if the shape is unknown.
 export function draftProperty(spec) {
   const make = TEMPLATES[spec.shape];

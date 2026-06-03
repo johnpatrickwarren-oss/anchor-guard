@@ -70,14 +70,18 @@ by-construction property is a CI test needing no API key.
 product default for CI/customers); `cli` = shell out to `claude -p --json-schema …`, using Claude Code's own
 auth (e.g. a Max plan — no key, no per-token bill). Default: API key if set, else the `claude` CLI; force
 with `ANCHOR_GUARD_BACKEND`. Both share `src/author/envelope.mjs` (one constrained proposal definition) and
-only propose. **Verified end-to-end LIVE on the `cli` backend (no API key):** generic intents map + accept;
-parameterized intents (layering/coordinator/dispatch) currently often get *rejected* because the schema
-doesn't yet carry per-intent param names (safe — rejected, not mis-applied). Enriching per-intent params is
-the next on-ramp polish.
+only propose. **Verified end-to-end LIVE on the `cli` backend (no API key).**
+
+**Parameterized-intent enrichment — DONE (D16).** Two fixes, so layering/isolate-import/etc. now succeed:
+(1) a per-intent/per-shape PARAMETER CATALOG (`INTENT_PARAMS` in map-intent.mjs, `SHAPE_PARAMS` in
+properties.mjs) is rendered into the proposer's system prompt so the model uses the EXACT param names; a
+test asserts every intent/shape is documented (no drift). (2) the FILTER now validates param TYPES, not just
+presence — `mapIntent` coerces array params that arrive as a JSON-string or bare string and fails small on
+anything non-array-shaped, so it never CRASHES (`.join` on a string) and never ACCEPTS a malformed invariant
+(a string where `dirs` must be an array). Both verified live: "validate must not import cli" and "nothing in
+src/agent or src/validate may import openai" now produce well-formed invariants with real array `dirs`.
 
 ## Next (resumable)
-- Enrich the proposal schema with per-intent PARAM names so parameterized intents (layering/coordinator/
-  dispatch) succeed instead of being rejected — the main on-ramp-yield improvement.
 - **Find a design partner** — a platform team feeling "the agent keeps gaming our gate." Validation is a
   customer, not more building.
 - Broaden the benchmark (the full attack matrix: raise-threshold / severity-downgrade / re-baseline /

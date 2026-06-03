@@ -170,6 +170,24 @@ to-end live. Note: per-intent PARAM names aren't yet in the schema, so parameter
 coordinator/dispatch) often get *rejected* (safe, not wrong) — enriching the schema with per-intent params
 is the obvious follow-up.
 
+## D16 — Raising parameterized-intent yield without weakening safety
+Live runs showed generic intents accepted but parameterized ones (layering/isolate-import) failing two ways:
+the model guessed wrong param NAMES (`to` for `forbid`), and returned array params as JSON-STRINGS — which
+made `mapIntent` either crash (`.join` on a string) or accept a malformed invariant (a string where `dirs`
+must be an array). The second is a safety hole: the filter validated presence, not type.
+- (A) Per-intent `oneOf` JSON Schema (type the params per intent) — most "structured", but `oneOf` support
+  is uneven across the two backends (SDK tool input_schema vs `claude --json-schema`); risky.
+- (B) Just enrich the prompt with param names — fixes names, but NOT the stringly-typed-array crash/accept.
+- **(C) ✅ Both layers: a param CATALOG in the prompt (exact names, sourced from the mapping logic) AND
+  harden the FILTER to coerce/validate array params and fail small.** Names come from a catalog beside the
+  TABLE (a test asserts no drift); types are enforced where the guarantee lives — in `mapIntent` — so bad
+  input from ANY source (model or hand-authored) is coerced or rejected, never crashes, never lands malformed.
+
+**Chosen: C.** Keeps the schema simple/cross-backend; puts the safety check in the deterministic filter (the
+arbiter), consistent with "the filter decides." Verified live: previously-broken layering + isolate-import
+now produce well-formed invariants. **Trade-off:** a bare-string param is coerced to a single-element array
+(a small convenience assumption); per-intent `oneOf` typing remains a possible future refinement.
+
 ## Standing rule for the rest of the build
 Every further fork gets the same treatment, appended here. The product is built **under its own
 governance** (sprag gate from commit zero; STATE.md + ADRs as the trail) — if the dogfood ever fights us,

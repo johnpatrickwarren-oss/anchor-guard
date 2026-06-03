@@ -9,7 +9,7 @@
 // so no key or network is touched. This module is only ever loaded lazily (from-text.mjs default path, or its
 // own test), mirroring how dispatch.mjs lazy-loads the MCP server.
 import Anthropic from '@anthropic-ai/sdk';
-import { proposalSchema, PROPOSER_SYSTEM } from './envelope.mjs';
+import { proposalSchema, proposerSystem } from './envelope.mjs';
 
 const MODEL = process.env.ANCHOR_GUARD_MODEL || 'claude-opus-4-8';
 
@@ -29,7 +29,7 @@ export async function modelPropose(text, envelope, { client = new Anthropic() } 
   const msg = await client.messages.create({
     model: MODEL,
     max_tokens: 1024,
-    system: PROPOSER_SYSTEM,
+    system: proposerSystem(envelope),
     tools: [tool],
     tool_choice: { type: 'tool', name: 'propose' },
     messages: [{ role: 'user', content: text }],
