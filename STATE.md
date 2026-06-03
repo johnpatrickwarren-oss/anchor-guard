@@ -87,6 +87,15 @@ never CRASHES (`.join` on a string) and never ACCEPTS a malformed invariant (a s
 array, or a string threshold). Both verified live: "validate must not import cli" and "nothing in
 src/agent or src/validate may import openai" now produce well-formed invariants with real array `dirs`.
 
+## Repo-shape-aware on-ramp — DONE (`guard scan`, D18)
+`guard scan <dir>` detects a repo's shape (language via build manifest > extension tally; source roots;
+test-naming fitness; model-SDK presence) and proposes a FITTING starter invariant set — fixing the misfit
+defaults the anvil dogfood exposed (`guard init` had armed anchor-guard's own `src/`+doc-trail conventions on a
+repo that has neither). require-tests is proposed only when the repo's test naming will be credited; the
+doc-trail rule isn't imposed; a model-SDK import surfaces an isolate-import suggestion. Pure heuristic; the
+proposed answers feed the same `mapInterview` filter. `--arm` writes+baselines, default is a dry-run rationale.
+Verified live on anvil (auto-derives the hand-fixed set) and deploysignal (detects ts). 13/13 test files green.
+
 ## Next (resumable)
 - **Find a design partner** — a platform team feeling "the agent keeps gaming our gate." Validation is a
   customer, not more building.

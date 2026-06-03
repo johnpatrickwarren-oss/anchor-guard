@@ -212,6 +212,29 @@ no subscription path (need an API key, unlike the claude CLI); their adapters ar
 LIVE path is unverified here (no keys in env). (Numeric params arriving stringly-typed, e.g. `"400"`, now get
 the same coercion treatment as arrays — `asNumber` in map-intent.mjs, extending D16; verified live.)
 
+## D18 — `guard scan`: a repo-shape-aware on-ramp (fixing the misfit-defaults the anvil dogfood exposed)
+Running `guard init` on anvil armed two rules that didn't fit and blocked its clean tree: `require-project-trail`
+(wanted STATE.md/docs/adr — anchor-guard's own doc convention) and `require-tests` at `dirs:["src"]` (anvil
+has no `src/`; and its `q29-*.test.ts` naming wouldn't be credited by sprag's `<source>.test.<ext>` matcher).
+The interview assumes an anchor-guard-shaped repo.
+- (A) Smarter interview defaults — but the interview is a fixed question script; per-repo tailoring doesn't fit.
+- (B) Make the user fix it after the fact — exactly the friction a design partner hits in the first 5 minutes.
+- **(C) ✅ `guard scan <dir>` — detect the repo's shape and PROPOSE a fitting set.** Pure heuristic (no model):
+  language via build manifest (`tsconfig.json`/`go.mod`/`pyproject` — stronger than a file-extension tally that
+  TS tooling .js files skew) then extension fallback; source roots (`src`/`lib` else `.`); **require-tests only
+  when the repo's test naming will actually be credited** (else a note explains the skip); convention-specific
+  rules (the doc-trail) are NOT imposed; a model-SDK import surfaces an isolate-import suggestion. Always
+  proposes the universal set (god-functions w/ correct lang, god-files, secrets, self-guard, +coupling for
+  non-Go). `--arm` writes + baselines; default is dry-run with a "why these" rationale.
+
+**Chosen: C.** The proposed answers feed the SAME `mapInterview` filter (safe by construction — scan only
+proposes). Verified live: on anvil it auto-derives exactly the hand-fixed 5-rule set + skips require-tests with
+the naming note; on deploysignal it correctly detects ts (manifest beats the .mjs tally). **Trade-off:** scan
+errs toward NOT proposing require-tests when naming is ambiguous (conservative — a missed rule beats a noisy
+one); `roots:['.']` for repos without `src/` gates the whole tree (the structural checks skip build/vendor
+dirs anyway). The coupling-hub gate fired again on the new test's import of map-intent — decoupled a redundant
+ask.test assertion, didn't relax (third time the limit forced this; map-intent is a genuine core hub).
+
 ## Standing rule for the rest of the build
 Every further fork gets the same treatment, appended here. The product is built **under its own
 governance** (sprag gate from commit zero; STATE.md + ADRs as the trail) — if the dogfood ever fights us,

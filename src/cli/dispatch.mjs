@@ -14,6 +14,7 @@ const USAGE = `guard <command>
   author <dir> --answers <file.json> map a saved answers file -> arch-invariants.json, then baseline + arm
   mcp                                start the MCP agent-loop server (gate as tools the agent calls in-loop)
   report [dir]                       print a markdown gate summary (for a PR comment)
+  scan   [dir] [--arm]               detect repo shape -> propose (and with --arm, write) a FITTING invariant set
   suggest <text> [--property [dir]]  free-text intent -> a proposal the deterministic filter accepts or rejects
   vocab                              list the v1 intent vocabulary`;
 
@@ -85,6 +86,23 @@ async function cmdSuggest(argv) {
   process.exit(1);
 }
 
+// scan: the repo-shape-aware on-ramp. Detect the repo's shape -> propose a FITTING invariant set (correct
+// lang/dirs, require-tests only when the test naming will be credited, no convention-specific rules imposed).
+// Pure heuristic; the proposed answers go through the SAME mapInterview filter. --arm writes + baselines.
+async function cmdScan(argv) {
+  const dir = argv.find((a) => !a.startsWith('--')) || '.';
+  const { scanRepo } = await import('../author/scan.mjs');
+  const scan = scanRepo(dir);
+  const { invariants } = mapInterview(scan.answers);
+  console.log(`guard: scanned ${dir} — proposing ${invariants.length} invariant(s) that fit this repo:`);
+  for (const i of invariants) console.log(`  - [${i.id}] ${i.intent}`);
+  console.log('\nwhy these (and not others):');
+  for (const n of scan.notes) console.log(`  • ${n}`);
+  if (argv.includes('--arm')) { console.log(''); return process.exit(armFromAnswers(dir, scan.answers) ? 0 : 1); }
+  console.log('\n(dry-run) re-run with --arm to write arch-invariants.json + baseline.');
+  return process.exit(0);
+}
+
 export function dispatch(argv) {
   const [cmd, ...rest] = argv;
   switch (cmd) {
@@ -93,6 +111,7 @@ export function dispatch(argv) {
     case 'author': return cmdAuthor(rest);
     case 'mcp': return void import('../agent/server.mjs').then((m) => m.startStdio()); // lazy: MCP SDK only loaded here
     case 'report': console.log(gateReport(rest[0] || '.')); return process.exit(0); // markdown for a PR comment
+    case 'scan': return cmdScan(rest);
     case 'suggest': return cmdSuggest(rest);
     case 'vocab': console.log(intentVocabulary().join('\n')); return process.exit(0);
     default: console.error(USAGE); return process.exit(cmd ? 64 : 0);
