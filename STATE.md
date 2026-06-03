@@ -53,16 +53,30 @@ Register with a host (e.g. Claude Code / Cursor `mcp.json`):
    decides (strong accepted, weak dropped, fail-small).
 
 The MVP spine is end-to-end: **init (interview) → armed & self-governed → in-loop MCP gate (can't be
-weakened) → PR gate → behavioral properties validated.** 6 test files green, self-gate green throughout
-(the gate even caught our own over-complex function — decomposed, not relaxed).
+weakened) → PR gate → behavioral properties validated.** Self-gate green throughout (the gate even caught
+our own over-complex function — decomposed, not relaxed).
+
+## Free-text on-ramp — DONE (`src/author/from-text.mjs`, `guard suggest`, ADR-0002, D13/D14)
+The last model-in-loop piece. A developer describes intent in plain English; the model **proposes** a
+structured shape (Anthropic tool-use, the discriminant constrained to the real vocabulary enum); the SAME
+deterministic filter (`mapIntent` / `arch property`) **decides**. Safe by construction: a hallucinated
+intent, a missing parameter, or a weak property is rejected by exactly the path that vets a hand-authored
+one — the model never sits on the gate. The model SDK is confined to `src/author/model-propose.mjs` (lazy),
+so the `isolate-import` "no model at gate-time" invariant still holds on ourselves (gate output:
+`isolate-…: 0`). Tests inject faithful AND adversarial fakes (8/8 test files green) — the safe-by-
+construction property is a CI test needing no API key. Live path needs `ANTHROPIC_API_KEY` (authoring-time
+only); wired + smoke-fails cleanly without one; an end-to-end live run is pending a key.
 
 ## Next (resumable)
-- Model picks the property shape / structural intent from free-text (the one remaining model-in-loop bit;
-  feeds the same `arch property` / `guard author` filters).
-- Broaden the benchmark (raised-threshold / severity-downgrade / re-baseline; Betterer + ESLint).
-- Hosted PR app + org dashboard (post-validation); design-partner recruiting.
-- **Not pushed/published** — public posting (named-competitor benchmark, repo) needs John's go-ahead.
+- End-to-end live run of `guard suggest` once an `ANTHROPIC_API_KEY` is available (logic already tested).
+- **Find a design partner** — a platform team feeling "the agent keeps gaming our gate." Validation is a
+  customer, not more building.
+- Broaden the benchmark (the full attack matrix: raise-threshold / severity-downgrade / re-baseline /
+  allow-list / stage-then-revert; vs dependency-cruiser AND Betterer). Deferred.
+- Hosted PR app + org dashboard (post-validation).
 
 ## Honest status
 Pre-product. The deterministic core is sprag (shipped, 35 suites green). This repo is the *glue*: the
-authoring loop's structural-mapping milestone + the gate wrapper, dogfooded. Not pushed/published.
+authoring loop (structural-mapping + free-text on-ramp) + the gate wrapper, dogfooded. **Pushed to a
+PRIVATE repo (`johnpatrickwarren-oss/anchor-guard`, 2026-06-03); BENCHMARK.md deliberately kept
+non-public.** Not yet design-partnered.

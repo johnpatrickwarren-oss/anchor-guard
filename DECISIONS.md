@@ -126,6 +126,32 @@ rule fails the check.
 (holds + kills mutants) decides, so a weak/tautological draft can't land (fail-small: rejected drafts are
 deleted).
 
+## D13 — Free-text intent → structured shape: how the model emits, and who decides
+- (A) Free-form completion, parse JSON out of prose — brittle, the model can wander off-vocabulary.
+- **(B) ✅ Constrained tool-use: the model fills a typed envelope whose discriminant is an ENUM of the real
+  vocabulary (`intentVocabulary()` / `propertyShapes()`); the SAME deterministic filter (`mapIntent` /
+  `authorProperty`) is the arbiter.** The model proposes inside a typed envelope; a wrong-but-well-formed
+  proposal is rejected exactly as a hand-authored one is.
+- (C) No SDK — emit a prompt the operator pastes into their own model. Zero dep, but "not a product."
+
+**Chosen: B.** Tool-use makes the proposal parseable-by-construction and confines the model to terms the
+filter understands; the deterministic filter still *decides*, so the safety story is unchanged from D5/D12
+— this is purely an on-ramp. **Trade-off:** one new runtime dep (`@anthropic-ai/sdk`), lazy-loaded and
+isolated to one `author/` file (so `isolate-import` still holds); authoring-time needs a key, gate-time
+never does. See ADR-0002.
+
+## D14 — Keeping the on-ramp tests model-free + proving safe-by-construction
+- (A) Mock the HTTP layer — heavy, couples to SDK internals.
+- **(B) ✅ Dependency-inject the `propose` function (and the Anthropic `client`).** Default is the
+  SDK-backed proposer (lazy); tests inject fakes — including ADVERSARIAL ones (hallucinated intent, missing
+  param, impl-restating/weak property) — to PROVE the deterministic filter rejects them. The thesis ("model
+  proposes, filter decides") becomes a CI test with no key or network.
+- (C) Live model in tests — non-deterministic, costs money, needs a key — not CI-able.
+
+**Chosen: B.** The injection seam is also the demonstration: the adversarial fakes are the proof. **Trade-
+off:** the `new Anthropic()` default construction itself isn't exercised in CI (trivial; the live path is
+wired and smoke-fails cleanly without a key).
+
 ## Standing rule for the rest of the build
 Every further fork gets the same treatment, appended here. The product is built **under its own
 governance** (sprag gate from commit zero; STATE.md + ADRs as the trail) — if the dogfood ever fights us,
