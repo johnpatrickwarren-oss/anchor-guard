@@ -209,8 +209,8 @@ enforcement is safe — a malformed object is rejected, never applied. SDKs are 
 injectable, so tests need no SDK/key/network and only the chosen provider's SDK ever loads (never at
 gate-time — the isolate-import invariant now also forbids `@google/genai`). **Trade-off:** OpenAI/Gemini have
 no subscription path (need an API key, unlike the claude CLI); their adapters are tested via injection but the
-LIVE path is unverified here (no keys in env). Numeric params can still arrive stringly-typed (e.g. `"400"`) —
-a coercion follow-up like the array fix in D16; sprag coerces numerically so it's low-stakes.
+LIVE path is unverified here (no keys in env). (Numeric params arriving stringly-typed, e.g. `"400"`, now get
+the same coercion treatment as arrays — `asNumber` in map-intent.mjs, extending D16; verified live.)
 
 ## Standing rule for the rest of the build
 Every further fork gets the same treatment, appended here. The product is built **under its own

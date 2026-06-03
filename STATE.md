@@ -81,9 +81,10 @@ claude-CLI verified live; OpenAI/Gemini adapters tested via injection, live run 
 (1) a per-intent/per-shape PARAMETER CATALOG (`INTENT_PARAMS` in map-intent.mjs, `SHAPE_PARAMS` in
 properties.mjs) is rendered into the proposer's system prompt so the model uses the EXACT param names; a
 test asserts every intent/shape is documented (no drift). (2) the FILTER now validates param TYPES, not just
-presence — `mapIntent` coerces array params that arrive as a JSON-string or bare string and fails small on
-anything non-array-shaped, so it never CRASHES (`.join` on a string) and never ACCEPTS a malformed invariant
-(a string where `dirs` must be an array). Both verified live: "validate must not import cli" and "nothing in
+presence — `mapIntent` coerces array params that arrive as a JSON-string or bare string (and numeric params
+arriving as strings, e.g. `"400"` → `400`, via `asNumber`) and fails small on anything non-coercible, so it
+never CRASHES (`.join` on a string) and never ACCEPTS a malformed invariant (a string where `dirs` must be an
+array, or a string threshold). Both verified live: "validate must not import cli" and "nothing in
 src/agent or src/validate may import openai" now produce well-formed invariants with real array `dirs`.
 
 ## Next (resumable)

@@ -32,6 +32,17 @@ const ok = (n, c, d) => { console.log(`${c ? 'ok  ' : 'FAIL'}  ${n}${c ? '' : ' 
 { const r = mapIntent({ intent: 'layering', from: 42, forbid: 'src/cli/' }); // non-coercible -> fail-small, no throw
   ok('non-array-shaped param fails small (no crash)', !r.ok && /from/.test(r.reason), JSON.stringify(r)); }
 
+// NUMERIC params arrive stringly-typed from the proposer too — coerce "400" -> 400; reject non-numeric (don't
+// silently fall back to the default, which would be a WRONG threshold). Absent -> the default applies.
+{ const r = mapIntent({ intent: 'no-god-files', max: '400' });
+  ok('numeric string param coerced to a number', r.ok && r.invariant.check.maxLines === 400, JSON.stringify(r)); }
+{ const r = mapIntent({ intent: 'no-god-functions' }); // absent -> default 12 (number)
+  ok('absent numeric param uses the default', r.ok && r.invariant.check.maxComplexity === 12, JSON.stringify(r)); }
+{ const r = mapIntent({ intent: 'no-god-files', max: 'lots' }); // non-numeric -> fail-small, not silent-default
+  ok('non-numeric max fails small (no silent default)', !r.ok && /max/.test(r.reason), JSON.stringify(r)); }
+{ const r = mapIntent({ intent: 'coordinator-thin', subject: 'Model', max: '10' });
+  ok('coordinator-thin coerces max "10" -> 10', r.ok && r.invariant.max === 10, JSON.stringify(r)); }
+
 // FAIL-SMALL: unknown intent -> reason, not a guess
 { const r = mapIntent({ intent: 'make-it-good' });
   ok('unknown intent yields a reason, not a guess', !r.ok && /unknown intent/.test(r.reason), JSON.stringify(r)); }

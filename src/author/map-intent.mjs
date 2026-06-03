@@ -9,11 +9,11 @@
 // (coordinator/layering/dispatch) name a symbol/path the interview supplies. `mode/max` set the baseline
 // policy (ratchet vs absolute), matching the sprag check's nature.
 const TABLE = {
-  'coordinator-thin': (p) => p.subject
-    ? { id: `coordinator-${slug(p.subject)}-thin`, check: { kind: 'struct_field_count', struct: p.subject }, max: p.max ?? 8, mode: 'ratchet', engine: 'ast-grep', lang: p.lang || 'ts' }
-    : missing('coordinator-thin', 'subject (the coordinator type name)'),
-  'no-god-functions': (p) => ({ id: 'no-god-functions', check: { kind: 'max_complexity', maxComplexity: p.max ?? 12 }, mode: 'ratchet', engine: 'ast-grep', lang: p.lang || 'ts' }),
-  'no-god-files': (p) => ({ id: 'no-god-files', check: { kind: 'oversized_files', maxLines: p.max ?? 500 }, mode: 'ratchet' }),
+  'coordinator-thin': (p) => { const m = asNumber(p.max); return !p.subject ? missing('coordinator-thin', 'subject (the coordinator type name)')
+    : Number.isNaN(m) ? missing('coordinator-thin', 'max (a number of members)')
+    : { id: `coordinator-${slug(p.subject)}-thin`, check: { kind: 'struct_field_count', struct: p.subject }, max: m ?? 8, mode: 'ratchet', engine: 'ast-grep', lang: p.lang || 'ts' }; },
+  'no-god-functions': (p) => { const m = asNumber(p.max); return Number.isNaN(m) ? missing('no-god-functions', 'max (a number, the complexity limit)') : { id: 'no-god-functions', check: { kind: 'max_complexity', maxComplexity: m ?? 12 }, mode: 'ratchet', engine: 'ast-grep', lang: p.lang || 'ts' }; },
+  'no-god-files': (p) => { const m = asNumber(p.max); return Number.isNaN(m) ? missing('no-god-files', 'max (a number of lines)') : { id: 'no-god-files', check: { kind: 'oversized_files', maxLines: m ?? 500 }, mode: 'ratchet' }; },
   'layering': (p) => { const from = asArray(p.from); return (from && p.forbid)
     ? { id: `layer-${slug(from.join('-'))}-not-${slug(p.forbid)}`, check: { kind: 'forbid_path', dirs: from, path: p.forbid }, max: 0, mode: 'ratchet' }
     : missing('layering', 'from (ARRAY of source dirs) and forbid (a path regex the source must not reference)'); },
@@ -21,7 +21,7 @@ const TABLE = {
     ? { id: `bounded-dispatch-${slug(p.on)}`, check: { kind: 'switch_case_count', on: p.on }, mode: 'ratchet', engine: 'ast-grep', lang: p.lang || 'ts' }
     : missing('bounded-dispatch', 'on (the dispatch discriminant expression)'),
   'typed-records': () => ({ id: 'no-positional-rows', check: { kind: 'magic_index_count' }, max: 0, mode: 'ratchet', engine: 'ast-grep', lang: 'ts' }),
-  'no-coupling-hub': (p) => ({ id: 'no-coupling-hub', check: { kind: 'module_fanin', maxFanin: p.max ?? 8 }, mode: 'ratchet' }),
+  'no-coupling-hub': (p) => { const m = asNumber(p.max); return Number.isNaN(m) ? missing('no-coupling-hub', 'max (a number, the fan-in limit)') : { id: 'no-coupling-hub', check: { kind: 'module_fanin', maxFanin: m ?? 8 }, mode: 'ratchet' }; },
   'require-tests': (p) => ({ id: 'require-tests', check: { kind: 'require_tests', dirs: asArray(p.dirs) || ['src'] }, mode: 'ratchet' }),
   'no-secrets': () => ({ id: 'no-committed-secrets', check: { kind: 'secret_scan', dirs: ['.'] }, max: 0 }),
   'bounded-deps': () => ({ id: 'dependency-surface', check: { kind: 'dependency_count' }, mode: 'ratchet' }),
@@ -54,6 +54,16 @@ function asArray(v) {
     return s ? [s] : null; // a bare path string -> single-element array
   }
   return null;
+}
+
+// Coerce an optional numeric param. Absent (undefined/null/'') -> undefined, so the caller applies its
+// default; a number or a numeric STRING ("400", as the proposer often emits) -> the number; anything else ->
+// NaN, so the caller fails small rather than silently using its default (a wrong threshold is worse than a
+// clear rejection). Same contract as asArray: coerce what's coercible, reject what isn't — never accept junk.
+function asNumber(v) {
+  if (v === undefined || v === null || v === '') return undefined;
+  const n = typeof v === 'number' ? v : Number(String(v).trim());
+  return Number.isFinite(n) ? n : NaN;
 }
 
 // Per-intent PARAMETER catalog — the EXACT param names each TABLE entry reads, so the free-text proposer can
