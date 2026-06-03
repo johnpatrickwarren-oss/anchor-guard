@@ -66,18 +66,18 @@ async function cmdInit(argv) {
 
 // suggest: the model-in-loop on-ramp. Free text -> the model PROPOSES a structured shape -> the SAME
 // deterministic filter (mapIntent / arch property) ACCEPTS or REJECTS it. from-text.mjs is lazy-imported so
-// the model SDK never loads for any other command (and stays out of gate-time paths). Needs ANTHROPIC_API_KEY.
+// the model SDK never loads for any other command (and stays out of gate-time paths). Uses an
+// ANTHROPIC_API_KEY if set, else the signed-in `claude` CLI (your subscription) — see from-text.mjs.
 async function cmdSuggest(argv) {
   const property = argv.includes('--property');
   const di = argv.indexOf('--dir');
   const dir = di >= 0 ? argv[di + 1] : '.';
-  const dirValueIdx = di >= 0 ? di + 1 : -1;
-  const text = argv.filter((a, i) => !a.startsWith('--') && i !== dirValueIdx).join(' ').trim();
+  const text = argv.filter((a, i) => !a.startsWith('--') && !(di >= 0 && i === di + 1)).join(' ').trim();
   if (!text) { console.error('suggest: a plain-English intent is required, e.g. guard suggest "keep coordinators thin"'); process.exit(64); }
   const { fromTextToInvariant, fromTextToProperty } = await import('../author/from-text.mjs');
   let r;
   try { r = property ? await fromTextToProperty(dir, text) : await fromTextToInvariant(text); }
-  catch (e) { console.error(`suggest: the proposal model call failed (${e?.message || e}).\nset ANTHROPIC_API_KEY (and optionally ANCHOR_GUARD_MODEL). The model only proposes — authoring-time only, never at gate-time.`); process.exit(70); }
+  catch (e) { console.error(`suggest: the proposal model call failed (${e?.message || e}).\nneeds either ANTHROPIC_API_KEY (metered API) OR a signed-in \`claude\` CLI (your subscription — used automatically when no key is set). Force with ANCHOR_GUARD_BACKEND=api|cli. The model only proposes — authoring-time only, never at gate-time.`); process.exit(70); }
   console.log(`guard: the model proposed:\n${JSON.stringify(r.proposed, null, 2)}\n`);
   const accepted = property ? r.accepted : r.ok;
   if (accepted) { console.log(`guard: ACCEPTED by the deterministic filter:\n${JSON.stringify(r.invariant ?? { file: r.file }, null, 2)}`); return process.exit(0); }

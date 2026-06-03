@@ -5,17 +5,14 @@
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { fromTextToInvariant, fromTextToProperty, INVARIANT_ENVELOPE, PROPERTY_ENVELOPE } from '../src/author/from-text.mjs';
-import { intentVocabulary } from '../src/author/map-intent.mjs';
-import { propertyShapes } from '../src/author/properties.mjs';
+import { fromTextToInvariant, fromTextToProperty } from '../src/author/from-text.mjs';
 
 let failed = 0;
 const ok = (n, c, d) => { console.log(`${c ? 'ok  ' : 'FAIL'}  ${n}${c ? '' : '  -- ' + d}`); if (!c) failed++; };
 const fixed = (val) => async () => val; // a fake proposer that always returns `val` (ignores the text)
 
-// The envelopes expose the REAL vocabulary, so the model can only pick something downstream understands.
-ok('invariant envelope enumerates the real intent vocabulary', JSON.stringify(INVARIANT_ENVELOPE.intents) === JSON.stringify(intentVocabulary()), '');
-ok('property envelope enumerates the real property shapes', JSON.stringify(PROPERTY_ENVELOPE.shapes) === JSON.stringify(propertyShapes()), '');
+// (The envelope<->real-vocabulary link is asserted authoritatively in envelope.test.mjs.) Here we prove the
+// FILTER decides: faithful proposals accepted, adversarial ones rejected by the same path.
 
 // FAITHFUL proposal -> the filter accepts it (same as a hand-authored answer).
 { const r = await fromTextToInvariant('keep the Coordinator type thin', { propose: fixed({ intent: 'coordinator-thin', subject: 'Coordinator', max: 8 }) });

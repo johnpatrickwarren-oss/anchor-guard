@@ -152,6 +152,24 @@ never does. See ADR-0002.
 off:** the `new Anthropic()` default construction itself isn't exercised in CI (trivial; the live path is
 wired and smoke-fails cleanly without a key).
 
+## D15 — Proposer auth: metered API key vs. the developer's Claude subscription
+- (A) API key only (`@anthropic-ai/sdk`) — the product default, but per-token billing is exorbitant for an
+  individual just trying the on-ramp.
+- (B) OAuth/subscription token straight into the SDK — fragile (token refresh) and murky on terms.
+- **(C) ✅ Two pluggable backends, auto-selected by available auth.** `api` = the SDK (metered, for
+  CI/customers); `cli` = shell out to `claude -p --output-format json --json-schema …` (Claude Code's own
+  auth, e.g. a Max plan — no key, no per-token bill). Default: API key if present, else the `claude` CLI.
+  Override with `ANCHOR_GUARD_BACKEND=api|cli`. `--json-schema` is the CLI analogue of forced tool-use, so
+  the SAME constrained envelope and the SAME deterministic filter apply on both paths.
+
+**Chosen: C.** Lets an individual try the on-ramp on their subscription while the product default stays the
+metered API for teams. Both backends share `envelope.mjs` (one definition of the constrained proposal) and
+only PROPOSE — the filter still decides. **Trade-off:** the `cli` path needs Claude Code installed + signed
+in; the schema/extraction logic is tested with an injected runner (no real `claude` call) and verified end-
+to-end live. Note: per-intent PARAM names aren't yet in the schema, so parameterized intents (layering/
+coordinator/dispatch) often get *rejected* (safe, not wrong) — enriching the schema with per-intent params
+is the obvious follow-up.
+
 ## Standing rule for the rest of the build
 Every further fork gets the same treatment, appended here. The product is built **under its own
 governance** (sprag gate from commit zero; STATE.md + ADRs as the trail) — if the dogfood ever fights us,

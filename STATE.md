@@ -63,12 +63,21 @@ deterministic filter (`mapIntent` / `arch property`) **decides**. Safe by constr
 intent, a missing parameter, or a weak property is rejected by exactly the path that vets a hand-authored
 one — the model never sits on the gate. The model SDK is confined to `src/author/model-propose.mjs` (lazy),
 so the `isolate-import` "no model at gate-time" invariant still holds on ourselves (gate output:
-`isolate-…: 0`). Tests inject faithful AND adversarial fakes (8/8 test files green) — the safe-by-
-construction property is a CI test needing no API key. Live path needs `ANTHROPIC_API_KEY` (authoring-time
-only); wired + smoke-fails cleanly without one; an end-to-end live run is pending a key.
+`isolate-…: 0`). Tests inject faithful AND adversarial fakes (10/10 test files green) — the safe-
+by-construction property is a CI test needing no API key.
+
+**Two proposer backends (D15), auto-selected by auth:** `api` = the `@anthropic-ai/sdk` (metered, the
+product default for CI/customers); `cli` = shell out to `claude -p --json-schema …`, using Claude Code's own
+auth (e.g. a Max plan — no key, no per-token bill). Default: API key if set, else the `claude` CLI; force
+with `ANCHOR_GUARD_BACKEND`. Both share `src/author/envelope.mjs` (one constrained proposal definition) and
+only propose. **Verified end-to-end LIVE on the `cli` backend (no API key):** generic intents map + accept;
+parameterized intents (layering/coordinator/dispatch) currently often get *rejected* because the schema
+doesn't yet carry per-intent param names (safe — rejected, not mis-applied). Enriching per-intent params is
+the next on-ramp polish.
 
 ## Next (resumable)
-- End-to-end live run of `guard suggest` once an `ANTHROPIC_API_KEY` is available (logic already tested).
+- Enrich the proposal schema with per-intent PARAM names so parameterized intents (layering/coordinator/
+  dispatch) succeed instead of being rejected — the main on-ramp-yield improvement.
 - **Find a design partner** — a platform team feeling "the agent keeps gaming our gate." Validation is a
   customer, not more building.
 - Broaden the benchmark (the full attack matrix: raise-threshold / severity-downgrade / re-baseline /

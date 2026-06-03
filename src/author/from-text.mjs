@@ -7,24 +7,24 @@
 // missing parameter, or a weak/tautological property is rejected by exactly the same code path that vets a
 // hand-authored one — the model never sits on the gate. This module is model-free: the `propose` function is
 // injected (default lazily loads the SDK-backed proposer), so it loads and tests without any SDK or API key.
-import { mapIntent, intentVocabulary } from './map-intent.mjs';
-import { authorProperty, propertyShapes } from './properties.mjs';
+import { mapIntent } from './map-intent.mjs';
+import { authorProperty } from './properties.mjs';
+import { INVARIANT_ENVELOPE, PROPERTY_ENVELOPE } from './envelope.mjs';
 
-// The typed envelopes we ask the model to fill. Defined here (not in the SDK file) so the contract — "pick
-// from THIS vocabulary" — is visible and testable without the SDK. The envelope's enum is the real vocabulary.
-export const INVARIANT_ENVELOPE = {
-  kind: 'invariant',
-  get intents() { return intentVocabulary(); },
-  note: 'Choose one intent and supply its parameters; unknown intents or missing parameters are rejected.',
-};
-export const PROPERTY_ENVELOPE = {
-  kind: 'property',
-  get shapes() { return propertyShapes(); },
-  note: 'Choose one shape and supply fn/module plus examples; the property must hold AND kill mutants.',
-};
+// The typed envelopes (the contract: "pick from THIS vocabulary") live model-free in envelope.mjs and are
+// re-exported here so from-text stays the public entry for the on-ramp.
+export { INVARIANT_ENVELOPE, PROPERTY_ENVELOPE };
 
-// Default proposer: lazy-import the SDK-backed boundary so this module (and its tests) load without the SDK.
+// Pick the proposer backend by available auth: an ANTHROPIC_API_KEY -> the metered SDK (the product default
+// for CI/customers); otherwise the `claude` CLI -> your Claude subscription (no key, no per-token bill).
+// Override with ANCHOR_GUARD_BACKEND=api|cli. Both only PROPOSE; the deterministic filter still decides.
+function chooseBackend() {
+  return process.env.ANCHOR_GUARD_BACKEND || (process.env.ANTHROPIC_API_KEY ? 'api' : 'cli');
+}
+
+// Default proposer: lazy-import the chosen backend so neither the SDK nor a `claude` call loads until needed.
 async function defaultPropose(text, envelope) {
+  if (chooseBackend() === 'cli') { const { cliPropose } = await import('./cli-propose.mjs'); return cliPropose(text, envelope); }
   const { modelPropose } = await import('./model-propose.mjs');
   return modelPropose(text, envelope);
 }

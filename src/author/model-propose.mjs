@@ -9,27 +9,17 @@
 // so no key or network is touched. This module is only ever loaded lazily (from-text.mjs default path, or its
 // own test), mirroring how dispatch.mjs lazy-loads the MCP server.
 import Anthropic from '@anthropic-ai/sdk';
+import { proposalSchema, PROPOSER_SYSTEM } from './envelope.mjs';
 
 const MODEL = process.env.ANCHOR_GUARD_MODEL || 'claude-opus-4-8';
 
-const SYSTEM = `You translate a developer's plain-English intent about code architecture or behavior into ONE structured proposal by calling the \`propose\` tool. Pick the closest intent/shape from the provided enum and fill in its parameters from the text. You only PROPOSE: a deterministic verifier decides whether to accept it, so never invent values you were not given — prefer to OMIT an uncertain parameter so the verifier can ask again rather than guess. Do not output prose; only call the tool.`;
-
-// Build a tool whose input_schema is the envelope. The discriminant (intent|shape) is an enum of the REAL
-// vocabulary, so the model can only pick something the downstream filter understands; params are open
-// (additionalProperties) because they vary per intent/shape and the deterministic filter validates them.
+// Wrap the shared proposal schema (envelope.mjs) as an Anthropic tool; forcing this tool yields structured
+// output. The schema's discriminant enum is the real vocabulary — the model can only pick a known intent/shape.
 export function proposalTool(envelope) {
-  const isInvariant = envelope.kind === 'invariant';
-  const key = isInvariant ? 'intent' : 'shape';
-  const values = isInvariant ? envelope.intents : envelope.shapes;
   return {
     name: 'propose',
     description: `Propose one ${envelope.kind} capturing the user's intent. ${envelope.note}`,
-    input_schema: {
-      type: 'object',
-      properties: { [key]: { type: 'string', enum: values } },
-      required: [key],
-      additionalProperties: true,
-    },
+    input_schema: proposalSchema(envelope),
   };
 }
 
@@ -39,7 +29,7 @@ export async function modelPropose(text, envelope, { client = new Anthropic() } 
   const msg = await client.messages.create({
     model: MODEL,
     max_tokens: 1024,
-    system: SYSTEM,
+    system: PROPOSER_SYSTEM,
     tools: [tool],
     tool_choice: { type: 'tool', name: 'propose' },
     messages: [{ role: 'user', content: text }],
