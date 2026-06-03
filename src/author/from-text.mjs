@@ -9,24 +9,40 @@
 // injected (default lazily loads the SDK-backed proposer), so it loads and tests without any SDK or API key.
 import { mapIntent } from './map-intent.mjs';
 import { authorProperty } from './properties.mjs';
-import { INVARIANT_ENVELOPE, PROPERTY_ENVELOPE } from './envelope.mjs';
+import { INVARIANT_ENVELOPE, PROPERTY_ENVELOPE, proposalSchema, proposerSystem } from './envelope.mjs';
 
 // The typed envelopes (the contract: "pick from THIS vocabulary") live model-free in envelope.mjs and are
 // re-exported here so from-text stays the public entry for the on-ramp.
 export { INVARIANT_ENVELOPE, PROPERTY_ENVELOPE };
 
-// Pick the proposer backend by available auth: an ANTHROPIC_API_KEY -> the metered SDK (the product default
-// for CI/customers); otherwise the `claude` CLI -> your Claude subscription (no key, no per-token bill).
-// Override with ANCHOR_GUARD_BACKEND=api|cli. Both only PROPOSE; the deterministic filter still decides.
-function chooseBackend() {
-  return process.env.ANCHOR_GUARD_BACKEND || (process.env.ANTHROPIC_API_KEY ? 'api' : 'cli');
+// Proposer backends — provider adapters, each loaded LAZILY so only the chosen provider's SDK loads (and none
+// at gate-time). `detect` = "this provider's credentials are present". Every backend receives the SAME
+// { system, schema } request (built here from the envelope) and only PROPOSES — the filter still decides — so
+// the backends depend on those abstractions, not on envelope.mjs. Adding a provider = one entry + one adapter.
+const BACKENDS = {
+  anthropic: { detect: () => !!process.env.ANTHROPIC_API_KEY, load: () => import('./model-propose.mjs').then((m) => m.anthropicPropose) },
+  openai: { detect: () => !!process.env.OPENAI_API_KEY, load: () => import('./openai-propose.mjs').then((m) => m.openaiPropose) },
+  gemini: { detect: () => !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY), load: () => import('./gemini-propose.mjs').then((m) => m.geminiPropose) },
+  cli: { detect: () => true, load: () => import('./cli-propose.mjs').then((m) => m.cliPropose) }, // claude subscription, no key
+};
+const AUTO_ORDER = ['anthropic', 'openai', 'gemini', 'cli'];
+const ALIAS = { api: 'anthropic', claude: 'cli', google: 'gemini' };
+
+// Choose a backend: an explicit ANCHOR_GUARD_BACKEND wins (friendly aliases accepted); else the first
+// provider whose credentials are present; else the `claude` CLI (a Max-plan subscription — no API key).
+export function chooseBackend() {
+  const forced = process.env.ANCHOR_GUARD_BACKEND;
+  if (forced) return ALIAS[forced] || forced;
+  return AUTO_ORDER.find((b) => BACKENDS[b].detect()) || 'cli';
 }
 
-// Default proposer: lazy-import the chosen backend so neither the SDK nor a `claude` call loads until needed.
+// Default proposer: build the { system, schema } request from the envelope, then lazy-load + call the backend.
 async function defaultPropose(text, envelope) {
-  if (chooseBackend() === 'cli') { const { cliPropose } = await import('./cli-propose.mjs'); return cliPropose(text, envelope); }
-  const { modelPropose } = await import('./model-propose.mjs');
-  return modelPropose(text, envelope);
+  const name = chooseBackend();
+  const backend = BACKENDS[name];
+  if (!backend) throw new Error(`unknown ANCHOR_GUARD_BACKEND "${name}" (have: ${Object.keys(BACKENDS).join(', ')})`);
+  const propose = await backend.load();
+  return propose(text, { system: proposerSystem(envelope), schema: proposalSchema(envelope) });
 }
 
 // Free text -> a vetted invariant (or a reason it was rejected). The model proposes {intent,...}; the

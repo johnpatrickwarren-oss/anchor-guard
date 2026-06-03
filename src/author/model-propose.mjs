@@ -1,36 +1,28 @@
-// author/model-propose — THE model boundary. The only file that imports a model SDK; the isolate-import
-// invariant keeps it (and everything that loads it) out of the gate-time paths (validate/, agent/). It turns
-// one free-text intent into ONE structured proposal that fills an envelope from from-text.mjs, using
-// Anthropic tool-use so the model MUST return typed JSON we never have to parse out of prose. It only
-// PROPOSES — the deterministic filter downstream (mapIntent / authorProperty) decides — so a wrong, weak, or
-// hallucinated proposal is harmless: it is rejected exactly as a hand-written one would be.
+// author/model-propose — the ANTHROPIC proposer backend. Imports a model SDK; the isolate-import invariant
+// keeps it (and everything that loads it) out of the gate-time paths (validate/, agent/). It receives a
+// { system, schema } request from from-text.mjs and uses Anthropic tool-use (forced) so the model MUST return
+// typed JSON we never parse out of prose. It only PROPOSES — the deterministic filter downstream decides — so
+// a wrong, weak, or hallucinated proposal is harmless: it is rejected exactly as a hand-written one would be.
 //
-// The `client` is injectable (default: `new Anthropic()`, reading ANTHROPIC_API_KEY); tests inject a fake,
-// so no key or network is touched. This module is only ever loaded lazily (from-text.mjs default path, or its
-// own test), mirroring how dispatch.mjs lazy-loads the MCP server.
+// The `client` is injectable (default: `new Anthropic()`, reading ANTHROPIC_API_KEY); tests inject a fake, so
+// no key or network is touched. Loaded only lazily (from-text.mjs backend registry, or its own test).
 import Anthropic from '@anthropic-ai/sdk';
-import { proposalSchema, proposerSystem } from './envelope.mjs';
 
 const MODEL = process.env.ANCHOR_GUARD_MODEL || 'claude-opus-4-8';
 
-// Wrap the shared proposal schema (envelope.mjs) as an Anthropic tool; forcing this tool yields structured
-// output. The schema's discriminant enum is the real vocabulary — the model can only pick a known intent/shape.
-export function proposalTool(envelope) {
-  return {
-    name: 'propose',
-    description: `Propose one ${envelope.kind} capturing the user's intent. ${envelope.note}`,
-    input_schema: proposalSchema(envelope),
-  };
+// Wrap a JSON schema as the forced `propose` tool; forcing it yields structured output. The schema's
+// discriminant enum is the real vocabulary — the model can only pick a known intent/shape.
+export function proposalTool(schema) {
+  return { name: 'propose', description: "Propose one structured proposal capturing the user's intent.", input_schema: schema };
 }
 
-// Free text + envelope -> the model's structured proposal (the tool-call input), or null if it didn't call.
-export async function modelPropose(text, envelope, { client = new Anthropic() } = {}) {
-  const tool = proposalTool(envelope);
+// (text, { system, schema }) -> the model's structured proposal (the tool-call input), or null if it didn't call.
+export async function anthropicPropose(text, { system, schema }, { client = new Anthropic() } = {}) {
   const msg = await client.messages.create({
     model: MODEL,
     max_tokens: 1024,
-    system: proposerSystem(envelope),
-    tools: [tool],
+    system,
+    tools: [proposalTool(schema)],
     tool_choice: { type: 'tool', name: 'propose' },
     messages: [{ role: 'user', content: text }],
   });

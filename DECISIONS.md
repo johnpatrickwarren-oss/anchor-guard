@@ -188,6 +188,30 @@ arbiter), consistent with "the filter decides." Verified live: previously-broken
 now produce well-formed invariants. **Trade-off:** a bare-string param is coerced to a single-element array
 (a small convenience assumption); per-intent `oneOf` typing remains a possible future refinement.
 
+## D17 — Multi-provider proposer (OpenAI + Gemini), without coupling or per-provider safety drift
+The on-ramp was Claude-only (Anthropic SDK + claude CLI). Adding OpenAI/Gemini raised two questions.
+- (A) One proposer module that switches on provider — but it would import all three SDKs (all must install)
+  and grow a god-function.
+- (B) A backend per provider, each importing `envelope.mjs` for its schema/system — clean files, BUT
+  `envelope.mjs` would hit ~9 importers and trip our own `no-coupling-hub` (fan-in > 6).
+- **(C) ✅ A backend per provider, LAZILY loaded, each receiving a `{ system, schema }` request built by
+  from-text.mjs — backends depend on those abstractions, not on envelope.mjs.** A small registry maps
+  provider → { detect (creds present), load (dynamic import) }; auto-selection tries anthropic → openai →
+  gemini → claude-CLI, overridable via `ANCHOR_GUARD_BACKEND` (aliases: api→anthropic, google→gemini,
+  claude→cli). Per-provider model envs (`ANCHOR_GUARD_OPENAI_MODEL` default gpt-4o, `ANCHOR_GUARD_GEMINI_MODEL`
+  default gemini-2.5-flash).
+
+**Chosen: C.** The gate FORCED the better design: our own coupling-hub limit pushed dependency inversion, so
+backends are now pure adapters. Each bridges `{system, schema}` → its provider's structured output (Anthropic
+forced tool-use; claude CLI `--json-schema`; OpenAI + Gemini JSON mode with the schema carried in the prompt)
+→ a parsed object. The deterministic filter remains the SINGLE uniform guarantee, so JSON mode's looser
+enforcement is safe — a malformed object is rejected, never applied. SDKs are lazy-imported + the client is
+injectable, so tests need no SDK/key/network and only the chosen provider's SDK ever loads (never at
+gate-time — the isolate-import invariant now also forbids `@google/genai`). **Trade-off:** OpenAI/Gemini have
+no subscription path (need an API key, unlike the claude CLI); their adapters are tested via injection but the
+LIVE path is unverified here (no keys in env). Numeric params can still arrive stringly-typed (e.g. `"400"`) —
+a coercion follow-up like the array fix in D16; sprag coerces numerically so it's low-stakes.
+
 ## Standing rule for the rest of the build
 Every further fork gets the same treatment, appended here. The product is built **under its own
 governance** (sprag gate from commit zero; STATE.md + ADRs as the trail) — if the dogfood ever fights us,

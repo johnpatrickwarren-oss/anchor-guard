@@ -66,11 +66,16 @@ so the `isolate-import` "no model at gate-time" invariant still holds on ourselv
 `isolate-…: 0`). Tests inject faithful AND adversarial fakes (10/10 test files green) — the safe-
 by-construction property is a CI test needing no API key.
 
-**Two proposer backends (D15), auto-selected by auth:** `api` = the `@anthropic-ai/sdk` (metered, the
-product default for CI/customers); `cli` = shell out to `claude -p --json-schema …`, using Claude Code's own
-auth (e.g. a Max plan — no key, no per-token bill). Default: API key if set, else the `claude` CLI; force
-with `ANCHOR_GUARD_BACKEND`. Both share `src/author/envelope.mjs` (one constrained proposal definition) and
-only propose. **Verified end-to-end LIVE on the `cli` backend (no API key).**
+**Four proposer backends (D15, D17), auto-selected by available creds:** `anthropic` = `@anthropic-ai/sdk`
+(forced tool-use); `openai` = `openai` SDK (JSON mode); `gemini` = `@google/genai` (JSON mode); `cli` = shell
+out to `claude -p --json-schema …` using Claude Code's own auth (e.g. a Max plan — no key, no per-token
+bill). Auto order: anthropic → openai → gemini → claude-CLI; force with `ANCHOR_GUARD_BACKEND=anthropic|
+openai|gemini|cli` (aliases api/google/claude). Per-provider model envs (`ANCHOR_GUARD_OPENAI_MODEL` default
+gpt-4o; `ANCHOR_GUARD_GEMINI_MODEL` default gemini-2.5-flash). Each backend is a LAZILY-loaded pure adapter
+receiving a `{ system, schema }` request that from-text.mjs builds from the envelope (dependency inversion —
+backends don't import envelope.mjs, which our own coupling-hub limit forced). Only the chosen provider's SDK
+loads, never at gate-time (isolate-import now also forbids `@google/genai`). All only propose. Anthropic +
+claude-CLI verified live; OpenAI/Gemini adapters tested via injection, live run pending API keys. **Verified end-to-end LIVE on the `cli` backend (no API key).**
 
 **Parameterized-intent enrichment — DONE (D16).** Two fixes, so layering/isolate-import/etc. now succeed:
 (1) a per-intent/per-shape PARAMETER CATALOG (`INTENT_PARAMS` in map-intent.mjs, `SHAPE_PARAMS` in

@@ -65,7 +65,7 @@
         "src/validate",
         "src/agent"
       ],
-      "path": "@anthropic-ai/sdk|@anthropic|openai|model-call"
+      "path": "@anthropic-ai/sdk|@anthropic|openai|@google/genai|model-call"
     },
     "max": 0,
     "mode": "ratchet"

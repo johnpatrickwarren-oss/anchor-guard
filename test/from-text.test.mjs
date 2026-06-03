@@ -5,11 +5,25 @@
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { fromTextToInvariant, fromTextToProperty } from '../src/author/from-text.mjs';
+import { fromTextToInvariant, fromTextToProperty, chooseBackend } from '../src/author/from-text.mjs';
 
 let failed = 0;
 const ok = (n, c, d) => { console.log(`${c ? 'ok  ' : 'FAIL'}  ${n}${c ? '' : '  -- ' + d}`); if (!c) failed++; };
 const fixed = (val) => async () => val; // a fake proposer that always returns `val` (ignores the text)
+
+// Backend selection: explicit override (with aliases) wins; else first provider whose key is present; else
+// the claude CLI. Restore env after so other assertions are unaffected.
+{ const save = { b: process.env.ANCHOR_GUARD_BACKEND, a: process.env.ANTHROPIC_API_KEY, o: process.env.OPENAI_API_KEY, g: process.env.GEMINI_API_KEY, gg: process.env.GOOGLE_API_KEY };
+  for (const k of ['ANCHOR_GUARD_BACKEND', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY']) delete process.env[k];
+  ok('no creds -> claude CLI fallback', chooseBackend() === 'cli', chooseBackend());
+  process.env.OPENAI_API_KEY = 'x'; ok('OPENAI_API_KEY -> openai', chooseBackend() === 'openai', chooseBackend());
+  process.env.ANTHROPIC_API_KEY = 'x'; ok('anthropic takes priority over openai', chooseBackend() === 'anthropic', chooseBackend());
+  process.env.ANCHOR_GUARD_BACKEND = 'gemini'; ok('explicit override wins', chooseBackend() === 'gemini', chooseBackend());
+  process.env.ANCHOR_GUARD_BACKEND = 'api'; ok('alias api -> anthropic', chooseBackend() === 'anthropic', chooseBackend());
+  process.env.ANCHOR_GUARD_BACKEND = 'google'; ok('alias google -> gemini', chooseBackend() === 'gemini', chooseBackend());
+  for (const k of ['ANCHOR_GUARD_BACKEND', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY']) delete process.env[k];
+  if (save.b) process.env.ANCHOR_GUARD_BACKEND = save.b; if (save.a) process.env.ANTHROPIC_API_KEY = save.a;
+  if (save.o) process.env.OPENAI_API_KEY = save.o; if (save.g) process.env.GEMINI_API_KEY = save.g; if (save.gg) process.env.GOOGLE_API_KEY = save.gg; }
 
 // (The envelope<->real-vocabulary link is asserted authoritatively in envelope.test.mjs.) Here we prove the
 // FILTER decides: faithful proposals accepted, adversarial ones rejected by the same path.

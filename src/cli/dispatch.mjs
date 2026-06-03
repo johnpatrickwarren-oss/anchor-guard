@@ -77,7 +77,7 @@ async function cmdSuggest(argv) {
   const { fromTextToInvariant, fromTextToProperty } = await import('../author/from-text.mjs');
   let r;
   try { r = property ? await fromTextToProperty(dir, text) : await fromTextToInvariant(text); }
-  catch (e) { console.error(`suggest: the proposal model call failed (${e?.message || e}).\nneeds either ANTHROPIC_API_KEY (metered API) OR a signed-in \`claude\` CLI (your subscription — used automatically when no key is set). Force with ANCHOR_GUARD_BACKEND=api|cli. The model only proposes — authoring-time only, never at gate-time.`); process.exit(70); }
+  catch (e) { console.error(`suggest: the proposal model call failed (${e?.message || e}).\nprovide credentials for any provider — ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY — or a signed-in \`claude\` CLI (used automatically when no key is set). Force one with ANCHOR_GUARD_BACKEND=anthropic|openai|gemini|cli. The model only proposes — authoring-time only, never at gate-time.`); process.exit(70); }
   console.log(`guard: the model proposed:\n${JSON.stringify(r.proposed, null, 2)}\n`);
   const accepted = property ? r.accepted : r.ok;
   if (accepted) { console.log(`guard: ACCEPTED by the deterministic filter:\n${JSON.stringify(r.invariant ?? { file: r.file }, null, 2)}`); return process.exit(0); }
