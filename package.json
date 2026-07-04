@@ -14,9 +14,6 @@
     "test": "node test/run.mjs",
     "gate": "node bin/guard.mjs check ."
   },
-  "config": {
-    "spragHome": "../sprag"
-  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
     "@google/genai": "^2.7.0",
