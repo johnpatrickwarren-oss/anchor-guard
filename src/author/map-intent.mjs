@@ -96,7 +96,12 @@ export function mapIntent(answer) {
   if (!make) return { ok: false, reason: `unknown intent "${answer.intent}" (not in the v1 vocabulary)` };
   const out = make(answer);
   if (out && out.__missing) return { ok: false, reason: `intent "${out.intent}" needs: ${out.need}` };
-  return { ok: true, invariant: { intent: answer.intent, severity: 'block', ...out } };
+  const invariant = { intent: answer.intent, severity: 'block', ...out };
+  // An explicit `id` pins the invariant's identity across param edits. Derived ids embed the params
+  // (e.g. isolate-<slug of path>), so tightening a path regex would otherwise RENAME the rule —
+  // orphaning its baseline entry and surfacing as remove+add instead of a tighten.
+  if (answer.id) invariant.id = slug(answer.id);
+  return { ok: true, invariant };
 }
 
 // Map a full interview (array of answers) -> { invariants, unmapped }. unmapped are surfaced to the

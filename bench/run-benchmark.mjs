@@ -42,6 +42,18 @@ writeFileSync(INV, JSON.stringify(relaxed, null, 2) + '\n');
 record('3 relax-config', '@anchor/guard', guard());
 writeFileSync(INV, inv0);
 
+// 4 — subtler: the agent NARROWS the rule's path regex so it no longer matches (rule looks alive,
+// no threshold moves, violation stays). The class of weakening a reviewer is least likely to spot.
+writeFileSync(DC, dc0.replace('^src/db/internal', '^src/db/internal-nomatch'));
+record('4 narrow-regex', 'dependency-cruiser', depcruise());
+writeFileSync(DC, dc0);
+
+const narrowed = JSON.parse(inv0).map((i) => i.id === 'no-ui-to-db-internal'
+  ? { ...i, check: { ...i.check, path: 'db/internal-nomatch' } } : i);
+writeFileSync(INV, JSON.stringify(narrowed, null, 2) + '\n');
+record('4 narrow-regex', '@anchor/guard', guard());
+writeFileSync(INV, inv0);
+
 // restore the fixture
 writeFileSync(PAGE, page0);
 
@@ -52,4 +64,7 @@ for (const r of rows) console.log(`${pad(r.step, 16)}${pad(r.tool, 22)}${pad(r.e
 const r3dc = rows.find((r) => r.step === '3 relax-config' && r.tool === 'dependency-cruiser');
 const r3g = rows.find((r) => r.step === '3 relax-config' && r.tool === '@anchor/guard');
 console.log(`\nUnder the config-relaxation attack: dependency-cruiser -> ${r3dc.verdict} (rule silently deleted), @anchor/guard -> ${r3g.verdict} (meta-ratchet caught the deletion).`);
+const r4dc = rows.find((r) => r.step === '4 narrow-regex' && r.tool === 'dependency-cruiser');
+const r4g = rows.find((r) => r.step === '4 narrow-regex' && r.tool === '@anchor/guard');
+console.log(`Under the regex-narrowing attack: dependency-cruiser -> ${r4dc.verdict} (rule looks alive but matches nothing), @anchor/guard -> ${r4g.verdict} (any residual check-field edit is a counted relaxation).`);
 writeFileSync(`${DIR}/results.json`, JSON.stringify(rows, null, 2) + '\n');

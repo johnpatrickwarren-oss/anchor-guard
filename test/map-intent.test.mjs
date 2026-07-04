@@ -56,6 +56,28 @@ const ok = (n, c, d) => { console.log(`${c ? 'ok  ' : 'FAIL'}  ${n}${c ? '' : ' 
   ]);
   ok('interview maps the good, surfaces the bad', r.invariants.length === 2 && r.unmapped.length === 2, JSON.stringify(r.unmapped)); }
 
+// PINNED ID: derived ids embed the params (isolate-<slug of path>), so tightening a path would RENAME
+// the rule — orphaning its baseline. An explicit `id` pins identity across param edits; it's slugged.
+{ const r = mapIntent({ intent: 'isolate-import', id: 'isolate-model-sdks', forbidIn: ['src/validate'], path: '@anthropic-ai/sdk|openai' });
+  ok('explicit id pins the invariant id', r.ok && r.invariant.id === 'isolate-model-sdks', JSON.stringify(r)); }
+{ const r = mapIntent({ intent: 'isolate-import', forbidIn: ['src/validate'], path: '@anthropic-ai/sdk' });
+  ok('absent id still derives from params', r.ok && r.invariant.id === 'isolate-anthropic-ai-sdk', JSON.stringify(r)); }
+
+// NO DRIFT between the committed answers file and the ARMED config: regenerating from
+// anchor-guard.answers.json must reproduce arch-invariants.json exactly. If this fails, `guard author`
+// would silently re-arm a DIFFERENT (possibly weaker) gate than the one under meta-ratchet guard.
+{ const { readFileSync } = await import('node:fs');
+  const { join, dirname } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const sort = (v) => Array.isArray(v) ? v.map(sort) : (v && typeof v === 'object') ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sort(v[k])])) : v;
+  const answers = JSON.parse(readFileSync(join(root, 'anchor-guard.answers.json'), 'utf8'));
+  const armed = JSON.parse(readFileSync(join(root, 'arch-invariants.json'), 'utf8'));
+  const r = mapInterview(answers);
+  ok('answers file regenerates the armed config exactly (no drift)',
+    r.unmapped.length === 0 && JSON.stringify(sort(r.invariants)) === JSON.stringify(sort(armed)),
+    `unmapped=${r.unmapped.length}; regen != armed`); }
+
 ok('vocabulary is non-empty', intentVocabulary().length >= 10, `${intentVocabulary().length}`);
 
 // No drift: every intent has a param catalog entry (so the free-text proposer is guided for ALL of them).

@@ -1,6 +1,6 @@
 # Benchmark: `@anchor/guard` vs `dependency-cruiser` — the config-relaxation attack
 
-**Date:** 2026-06-03 · **Reproduce:** `cd bench && npm install && SPRAG_HOME=<sprag> node run-benchmark.mjs`
+**Date:** 2026-06-03 (step 4 added 2026-07-04) · **Reproduce:** `cd bench && npm install && SPRAG_HOME=<sprag> node run-benchmark.mjs`
 **Versions:** dependency-cruiser **17.4.3**; `@anchor/guard` 0.0.1 over sprag (arch-gate).
 
 ## What this tests — and what it deliberately does *not*
@@ -18,13 +18,14 @@ both `.dependency-cruiser.cjs` (a `forbidden` rule, `severity: error`) and `arch
 `forbid_path` check). `@anchor/guard` additionally arms a **meta-ratchet** (`config_relaxations`) — its
 config + baseline may only move forward vs git `HEAD`.
 
-## The scenario (3 steps, both tools, real runs)
+## The scenario (4 steps, both tools, real runs)
 
 | Step | dependency-cruiser | `@anchor/guard` |
 |---|---|---|
 | **1 · clean** | exit 0 — **pass** | exit 0 — **pass** |
 | **2 · agent adds the violation** (`ui` imports `db/internal`) | exit 1 — **BLOCK** | exit 3 — **BLOCK** |
 | **3 · agent deletes the rule to "pass"** (violation still present) | exit 0 — **pass** ⚠️ | exit 3 — **BLOCK** ✅ |
+| **4 · agent narrows the rule's regex** (rule looks alive, matches nothing) | exit 0 — **pass** ⚠️ | exit 3 — **BLOCK** ✅ |
 
 Raw output (`results.json`, verbatim):
 ```
@@ -34,6 +35,8 @@ Raw output (`results.json`, verbatim):
 2 violation     @anchor/guard         exit 3  BLOCK
 3 relax-config  dependency-cruiser    exit 0  pass    (rule silently deleted)
 3 relax-config  @anchor/guard         exit 3  BLOCK   (meta-ratchet caught the deletion)
+4 narrow-regex  dependency-cruiser    exit 0  pass    (rule looks alive but matches nothing)
+4 narrow-regex  @anchor/guard         exit 3  BLOCK   (residual check-field edit = counted relaxation)
 ```
 
 ## Result
@@ -43,6 +46,10 @@ Raw output (`results.json`, verbatim):
   meta-ratchet compares the config to `HEAD`, sees the rule was deleted, and **blocks the relaxation
   itself** — exit 3, the violation un-hideable without an explicit, on-the-record override
   (`ARCH_ALLOW_RELAX=1`, which still prints what was loosened).
+- **Step 4: the subtler variant.** Instead of deleting the rule, the agent edits its path regex so it
+  no longer matches — the config still *lists* the rule, no threshold moves, and dependency-cruiser
+  reports a clean pass. The meta-ratchet treats **any** edit to a rule's non-threshold check fields as
+  a relaxation (direction is unverifiable for a regex), so `@anchor/guard` blocks this too.
 
 ## Honest interpretation (no overclaim)
 dependency-cruiser did exactly what it's designed to do at every step; "pass" at step 3 is *correct*
@@ -57,9 +64,9 @@ best free tool; its differentiator is that **the gate cannot be silently turned 
 shortcut an agent reaches for to fake a pass is the one move the gate refuses to make quietly.
 
 ## Caveats / scope
-- One rule, one language, one attack (rule deletion). The same result holds for raised thresholds,
-  downgraded severity, and re-baselining (covered by sprag's meta-ratchet test suite), but those aren't
-  re-run here.
+- One rule, one language, two attacks (rule deletion, regex narrowing). The same result holds for
+  raised thresholds, downgraded severity, re-baselining, and scope shrinking (covered by sprag's
+  meta-ratchet test suite), but those aren't re-run here.
 - `--no-verify` / force-pushing `HEAD` bypass any local gate; the durable enforcement is the same check
   run in CI, where those don't apply. (See sprag's `THREAT-MODEL.md` for the full honest-limits list.)
 - This compares the *deterministic* axis only; it says nothing about LLM PR-review tools, which are

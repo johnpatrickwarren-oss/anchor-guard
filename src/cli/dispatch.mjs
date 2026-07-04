@@ -59,7 +59,7 @@ async function cmdInit(argv) {
     const lines = data.split('\n'); let i = 0;
     ask = async (p) => { process.stdout.write(p); return lines[i++] ?? ''; };
   }
-  const answers = await runInterview(ask);
+  const answers = await runInterview(ask, dir);
   done();
   console.log('');
   process.exit(armFromAnswers(dir, answers) ? 0 : 1);
@@ -69,11 +69,20 @@ async function cmdInit(argv) {
 // deterministic filter (mapIntent / arch property) ACCEPTS or REJECTS it. from-text.mjs is lazy-imported so
 // the model SDK never loads for any other command (and stays out of gate-time paths). Uses an
 // ANTHROPIC_API_KEY if set, else the signed-in `claude` CLI (your subscription) — see from-text.mjs.
-async function cmdSuggest(argv) {
-  const property = argv.includes('--property');
+// Parse `suggest` args per the documented form `<text> [--property [dir]]` (with `--dir <dir>` as an
+// explicit alternative): the token right after --property is the property dir, never intent text.
+export function parseSuggestArgs(argv) {
+  const pi = argv.indexOf('--property');
   const di = argv.indexOf('--dir');
-  const dir = di >= 0 ? argv[di + 1] : '.';
-  const text = argv.filter((a, i) => !a.startsWith('--') && !(di >= 0 && i === di + 1)).join(' ').trim();
+  const dirIdx = di >= 0 ? di + 1
+    : (pi >= 0 && argv[pi + 1] && !argv[pi + 1].startsWith('--') ? pi + 1 : -1);
+  const dir = dirIdx >= 0 && argv[dirIdx] ? argv[dirIdx] : '.';
+  const text = argv.filter((a, i) => !a.startsWith('--') && i !== dirIdx).join(' ').trim();
+  return { property: pi >= 0, dir, text };
+}
+
+async function cmdSuggest(argv) {
+  const { property, dir, text } = parseSuggestArgs(argv);
   if (!text) { console.error('suggest: a plain-English intent is required, e.g. guard suggest "keep coordinators thin"'); process.exit(64); }
   const { fromTextToInvariant, fromTextToProperty } = await import('../author/from-text.mjs');
   let r;

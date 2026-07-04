@@ -22,14 +22,34 @@ jobs:
         run: git clone --depth 1 https://github.com/johnpatrickwarren-oss/sprag.git "$RUNNER_TEMP/sprag" && (cd "$RUNNER_TEMP/sprag" && npm ci || npm install)
       - name: Install guard
         run: npm ci || npm install
+      # NOTE: env values with ${{ }} must use block mapping — a plain scalar can't start with `{`
+      # inside a flow mapping, and the invalid YAML meant this workflow NEVER ran (0s failures).
       - name: Architecture gate report
         if: always()
-        env: { SPRAG_HOME: ${{ runner.temp }}/sprag }
+        env:
+          SPRAG_HOME: ${{ runner.temp }}/sprag
         run: node bin/guard.mjs report . > guard-report.md
       - name: Post report as a PR comment
         if: always() && github.event.pull_request.number
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: gh pr comment "${{ github.event.pull_request.number }}" --body-file guard-report.md
-        env: { GH_TOKEN: ${{ github.token }} }
       - name: Gate (blocks the PR on a violation or a rule relaxation)
-        env: { SPRAG_HOME: ${{ runner.temp }}/sprag }
+        env:
+          SPRAG_HOME: ${{ runner.temp }}/sprag
         run: node bin/guard.mjs check .
+      # In a CI checkout the worktree == HEAD, so the ARMED meta-ratchet (against: HEAD) is vacuous
+      # here — it protects local edits, not PRs. This step re-runs config_relaxations from a config
+      # OUTSIDE the repo, against the PR's BASE: a PR cannot vote on its own ruleset.
+      - name: Meta-ratchet vs the PR base (a PR cannot weaken the gate it is judged by)
+        run: |
+          cat > "$RUNNER_TEMP/meta-vs-base.json" <<EOF
+          [{ "id": "no-config-relaxation-vs-base",
+             "intent": "the PR may not weaken the gate relative to its base branch",
+             "severity": "block", "max": 0,
+             "check": { "kind": "config_relaxations",
+                        "invariants": "arch-invariants.json",
+                        "baseline": "arch-invariants.baseline.json",
+                        "against": "${{ github.event.pull_request.base.sha }}" } }]
+          EOF
+          node "$RUNNER_TEMP/sprag/arch-gate.mjs" . --invariants "$RUNNER_TEMP/meta-vs-base.json"

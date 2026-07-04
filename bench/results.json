@@ -34,5 +34,17 @@
     "tool": "@anchor/guard",
     "exit": 3,
     "verdict": "BLOCK"
+  },
+  {
+    "step": "4 narrow-regex",
+    "tool": "dependency-cruiser",
+    "exit": 0,
+    "verdict": "pass"
+  },
+  {
+    "step": "4 narrow-regex",
+    "tool": "@anchor/guard",
+    "exit": 3,
+    "verdict": "BLOCK"
   }
 ]
